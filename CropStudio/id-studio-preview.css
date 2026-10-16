@@ -1,0 +1,94 @@
+/* ==========================================================================
+   ID Studio - Coala Foto de Laborator (8.9 x 12.7 cm)
+   Design curat: Fara texte, fara casete inutile - doar coala cu cele 4 miniaturi
+   ========================================================================== */
+
+/* Layout orizontal implicit (Desktop / Landscape) */
+.crop-studio-root .canvas-viewport:not(.empty-viewport) {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 28px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  padding: 65px 24px 120px !important;
+}
+
+/* Layout vertical (Dispozitive portabile / Portrait) */
+@media (orientation: portrait), (max-aspect-ratio: 1/1) {
+  .crop-studio-root .canvas-viewport:not(.empty-viewport) {
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 30px 10px 75px !important;
+  }
+}
+
+/* Coala foto pura de 8.9 x 12.7 cm (ratio fizic 8.9 / 12.7) */
+.id-studio-sheet {
+  position: relative !important;
+  z-index: 25 !important; /* Ramane vizibila peste box-shadow 9999px al fixed-crop-frame */
+  flex-shrink: 0 !important;
+  background: #ffffff !important;
+  border-radius: 2px !important;
+  box-sizing: border-box !important;
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.4) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  pointer-events: none !important;
+  transition: width 0.15s ease, height 0.15s ease !important;
+}
+
+/* Grid-ul cu cele 4 miniaturi (2x2) */
+.id-studio-sheet-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, auto) !important;
+  grid-template-rows: repeat(2, auto) !important;
+  gap: 8px 8px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+
+/* Fiecare celula foto de pe coala */
+.id-studio-photo-slot {
+  position: relative !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  background: #f1f3f5 !important;
+  border: 1px dashed rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Linii fine de taiere si coltare de ghidaj */
+.id-studio-photo-slot::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Scalerul intern care cloneaza transformarile 1:1 */
+.id-studio-slot-scaler {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  transform-origin: 0 0 !important;
+  pointer-events: none !important;
+}
+
+.id-studio-slot-scaler img {
+  display: block !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
