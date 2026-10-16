@@ -1,6 +1,6 @@
 /**
  * ID Studio - Coala Foto de Laborator (8.9 x 12.7 cm)
- * Sincronizare Live pura: doar coala cu cele 4 miniaturi, fara elemente parazite.
+ * Sincronizare Live 1:1, proportionalitate fizica exacta si layout responsive
  */
 (function() {
   'use strict';
@@ -9,6 +9,7 @@
   var slotScalers = [];
   var slotImgs = [];
   var slots = [];
+
   var lastState = {
     src: '',
     transform: '',
@@ -17,11 +18,13 @@
     frameH: 0,
     imgW: '',
     imgH: '',
-    isPortrait: false
+    isPortrait: false,
+    selectedW: 0,
+    selectedH: 0
   };
 
   /**
-   * Construieste elementul pur al colii foto (8.9 x 12.7 cm) cu cele 4 sloturi
+   * Construieste elementul pur al colii foto cu cele 4 sloturi
    */
   function createSheet() {
     var sheet = document.createElement('div');
@@ -40,6 +43,24 @@
     slotImgs = Array.from(sheet.querySelectorAll('.id-studio-slot-scaler img'));
 
     return sheet;
+  }
+
+  /**
+   * Extrage dimensiunea in centimetri selectata curent in bara de comenzi
+   */
+  function getSelectedSizeCm() {
+    var sizeDropdown = document.querySelector('.editbar-dropdown-wrapper:not(.copies-dropdown-wrapper)');
+    if (sizeDropdown) {
+      var txt = sizeDropdown.innerText || sizeDropdown.textContent || '';
+      var match = txt.match(/([\d\.]+)\s*[×xX\:\/]\s*([\d\.]+)/);
+      if (match) {
+        return {
+          w: parseFloat(match[1]),
+          h: parseFloat(match[2])
+        };
+      }
+    }
+    return { w: 3.5, h: 4.5 };
   }
 
   /**
@@ -73,6 +94,22 @@
       return;
     }
 
+    var viewportW = viewport.clientWidth;
+    var viewportH = viewport.clientHeight;
+    var isPortrait = (viewportH > viewportW) || window.matchMedia('(orientation: portrait)').matches;
+
+    // In modul vertical / portabil: impartim inaltimea disponibila in jumatate
+    if (isPortrait) {
+      var maxHalfH = Math.floor((viewportH - 45) / 2);
+      if (maxHalfH > 100) {
+        cropFrame.style.maxHeight = maxHalfH + 'px';
+      }
+    } else {
+      if (cropFrame.style.maxHeight) {
+        cropFrame.style.maxHeight = '';
+      }
+    }
+
     var frameW = cropFrame.offsetWidth;
     var frameH = cropFrame.offsetHeight;
     if (frameW <= 0 || frameH <= 0) {
@@ -80,32 +117,15 @@
       return;
     }
 
-    var viewportW = viewport.clientWidth;
-    var viewportH = viewport.clientHeight;
-    var isPortrait = (viewportH > viewportW) || window.matchMedia('(orientation: portrait)').matches;
-
-    // Ajustare pentru modul portabil / vertical: impartirea inaltimii in jumatate
-    if (isPortrait) {
-      // Inaltimea maxima disponibila pentru fiecare din cele doua elemente
-      var maxHalfH = Math.floor((viewportH - 40) / 2);
-      if (maxHalfH > 100) {
-        cropFrame.style.maxHeight = maxHalfH + 'px';
-        frameW = cropFrame.offsetWidth;
-        frameH = cropFrame.offsetHeight;
-      }
-    } else {
-      if (cropFrame.style.maxHeight) {
-        cropFrame.style.maxHeight = '';
-        frameW = cropFrame.offsetWidth;
-        frameH = cropFrame.offsetHeight;
-      }
-    }
-
     var src = mainImg.getAttribute('src') || mainImg.src || '';
     var transform = mainImg.style.transform || '';
     var filter = mainImg.style.filter || '';
     var imgW = mainImg.style.width || '';
     var imgH = mainImg.style.height || '';
+
+    var sizeInfo = getSelectedSizeCm();
+    var selW = sizeInfo.w;
+    var selH = sizeInfo.h;
 
     var changed = (
       src !== lastState.src ||
@@ -115,7 +135,9 @@
       frameH !== lastState.frameH ||
       imgW !== lastState.imgW ||
       imgH !== lastState.imgH ||
-      isPortrait !== lastState.isPortrait
+      isPortrait !== lastState.isPortrait ||
+      selW !== lastState.selectedW ||
+      selH !== lastState.selectedH
     );
 
     if (changed) {
@@ -127,27 +149,44 @@
       lastState.imgW = imgW;
       lastState.imgH = imgH;
       lastState.isPortrait = isPortrait;
+      lastState.selectedW = selW;
+      lastState.selectedH = selH;
 
-      // Coala are EXACT aceeasi inaltime ca si chenarul de editare
-      var targetSheetH = frameH;
-      // Raportul fizic al colii este 8.9 / 12.7 ~= 0.700787
-      var targetSheetW = Math.round(targetSheetH * (8.9 / 12.7));
+      // Coala are EXACT aceeasi inaltime ca chenarul de editare
+      var sheetH = frameH;
+      // Raportul fizic al colii este 8.9 / 12.7 ~= 0.7007874
+      var sheetW = Math.round(sheetH * (8.9 / 12.7));
 
-      sheetEl.style.height = targetSheetH + 'px';
-      sheetEl.style.width = targetSheetW + 'px';
+      sheetEl.style.height = sheetH + 'px';
+      sheetEl.style.width = sheetW + 'px';
 
-      // Calculam dimensiunile celor 4 miniaturi cu raportul exact al chenarului
-      var ratio = frameW / frameH;
-      var gapX = 8;
-      var gapY = 8;
+      // Determinarea dimensiunilor fizice reale ale pozei in cm (in functie de orientarea cadrului)
+      var photoW_cm = selW;
+      var photoH_cm = selH;
+      if (frameW > frameH) {
+        // Cadrul este orizontal (landscape)
+        photoW_cm = Math.max(selW, selH);
+        photoH_cm = Math.min(selW, selH);
+      } else {
+        // Cadrul este vertical (portrait)
+        photoW_cm = Math.min(selW, selH);
+        photoH_cm = Math.max(selW, selH);
+      }
 
-      // Incadram optim cele 4 poze in gridul 2x2 pe suprafata colii
-      var maxSlotH = (targetSheetH * 0.94 - gapY) / 2;
-      var maxSlotW = (targetSheetW * 0.94 - gapX) / 2;
+      // Raportarea exacta a pozei la coala de 8.9 x 12.7 cm
+      // Daca 2 poze depasesc coala (ex: formate mari), le scalam proportional pentru a incapea pe coala
+      var scaleFactor = 1.0;
+      var maxAllowedW = 8.9 - 0.4;
+      var maxAllowedH = 12.7 - 0.4;
+      if ((2 * photoW_cm > maxAllowedW) || (2 * photoH_cm > maxAllowedH)) {
+        scaleFactor = Math.min(maxAllowedW / (2 * photoW_cm), maxAllowedH / (2 * photoH_cm));
+      }
 
-      var slotH = Math.floor(Math.min(maxSlotH, maxSlotW / ratio));
-      var slotW = Math.floor(slotH * ratio);
+      // Calculam dimensiunea in pixeli a miniaturii raportata la coala
+      var slotW = Math.round(sheetW * ((photoW_cm * scaleFactor) / 8.9));
+      var slotH = Math.round(sheetH * ((photoH_cm * scaleFactor) / 12.7));
 
+      // Scalarea imaginii de la cadrul principal (frameW, frameH) la miniatura (slotW, slotH)
       var scale = slotW / frameW;
 
       for (var i = 0; i < slots.length; i++) {

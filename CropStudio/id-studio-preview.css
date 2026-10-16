@@ -1,6 +1,6 @@
 /* ==========================================================================
    ID Studio - Coala Foto de Laborator (8.9 x 12.7 cm)
-   Design curat: Fara texte, fara casete inutile - doar coala cu cele 4 miniaturi
+   Curat, proportional la scara reala, sincronizare 1:1 exacta
    ========================================================================== */
 
 /* Layout orizontal implicit (Desktop / Landscape) */
@@ -9,33 +9,35 @@
   flex-direction: row !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 28px !important;
+  gap: 32px !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
-  padding: 65px 24px 120px !important;
+  padding: 60px 24px 115px !important;
 }
 
 /* Layout vertical (Dispozitive portabile / Portrait) */
 @media (orientation: portrait), (max-aspect-ratio: 1/1) {
   .crop-studio-root .canvas-viewport:not(.empty-viewport) {
     flex-direction: column !important;
-    gap: 12px !important;
-    padding: 30px 10px 75px !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding: 30px 10px 85px !important;
   }
 }
 
-/* Coala foto pura de 8.9 x 12.7 cm (ratio fizic 8.9 / 12.7) */
+/* Coala foto pura de 8.9 x 12.7 cm */
 .id-studio-sheet {
   position: relative !important;
-  z-index: 25 !important; /* Ramane vizibila peste box-shadow 9999px al fixed-crop-frame */
+  z-index: 25 !important; /* Deasupra umbrei 9999px a cadrului de editare */
   flex-shrink: 0 !important;
   background: #ffffff !important;
   border-radius: 2px !important;
   box-sizing: border-box !important;
   box-shadow:
-    0 14px 36px rgba(0, 0, 0, 0.5),
+    0 16px 40px rgba(0, 0, 0, 0.55),
     0 2px 8px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.4) !important;
+    0 0 0 1px rgba(255, 255, 255, 0.5) !important;
   overflow: hidden !important;
   display: flex !important;
   align-items: center !important;
@@ -43,15 +45,15 @@
   user-select: none !important;
   -webkit-user-select: none !important;
   pointer-events: none !important;
-  transition: width 0.15s ease, height 0.15s ease !important;
+  transition: width 0.12s ease, height 0.12s ease !important;
 }
 
-/* Grid-ul cu cele 4 miniaturi (2x2) */
+/* Suprafata cu cele 4 miniaturi aliniate in grid 2x2 */
 .id-studio-sheet-grid {
   display: grid !important;
   grid-template-columns: repeat(2, auto) !important;
   grid-template-rows: repeat(2, auto) !important;
-  gap: 8px 8px !important;
+  gap: 6px 6px !important;
   align-items: center !important;
   justify-content: center !important;
   box-sizing: border-box !important;
@@ -63,21 +65,21 @@
   overflow: hidden !important;
   box-sizing: border-box !important;
   background: #f1f3f5 !important;
-  border: 1px dashed rgba(0, 0, 0, 0.3) !important;
+  border: 1px dashed rgba(0, 0, 0, 0.28) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
 }
 
-/* Linii fine de taiere si coltare de ghidaj */
+/* Linii fine de ghidaj / taiere */
 .id-studio-photo-slot::before {
   content: '';
   position: absolute;
   inset: -1px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.14);
   pointer-events: none;
   z-index: 5;
 }
 
-/* Scalerul intern care cloneaza transformarile 1:1 */
+/* Scalerul intern care simuleaza cadrul principal */
 .id-studio-slot-scaler {
   position: absolute !important;
   top: 0 !important;
@@ -86,9 +88,110 @@
   pointer-events: none !important;
 }
 
+/* Imaginea clonata: Pozitionare absoluta identica cu .framed-photo-image (top: 50%, left: 50%) */
 .id-studio-slot-scaler img {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
   display: block !important;
   pointer-events: none !important;
   user-select: none !important;
   -webkit-user-select: none !important;
+  max-width: none !important;
+  max-height: none !important;
 }
+
+/* ==========================================================================
+   Fix: Dropdown Marime si Numar Copii (Se desfasoara in sus, vizibil 100%)
+   ========================================================================== */
+
+/* Eliminam overflow: hidden care taia dropdown-ul cand se desfasura in sus */
+.horizon-control-panel,
+.horizon-control-panel.svelte-v18rvr,
+.control-panel.horizon-control-panel,
+div.horizon-control-panel {
+  overflow: visible !important;
+  z-index: 100 !important;
+}
+
+.horizon-floating-container,
+.horizon-floating-container.svelte-v18rvr,
+div.horizon-floating-container {
+  overflow: visible !important;
+  z-index: 100 !important;
+}
+
+.editbar-dropdown-wrapper,
+.editbar-dropdown-wrapper.svelte-v18rvr,
+div.editbar-dropdown-wrapper {
+  overflow: visible !important;
+  position: relative !important;
+  z-index: 200 !important;
+}
+
+/* Dropdown-ul cu marimi si numar copii se desfasoara intotdeauna IN SUS */
+.size-dropdown-menu,
+.size-dropdown-menu.svelte-v18rvr,
+.horizon-control-panel .size-dropdown-menu,
+.copies-dropdown-menu,
+.copies-dropdown-menu.svelte-v18rvr,
+.horizon-control-panel .copies-dropdown-menu {
+  display: flex !important;
+  flex-direction: column !important;
+  position: absolute !important;
+  bottom: calc(100% + 14px) !important;
+  top: auto !important;
+  left: 0 !important;
+  min-width: 140px !important;
+  max-height: 55vh !important;
+  overflow-y: auto !important;
+  background: #2a2521 !important;
+  background: linear-gradient(180deg, #3d3530, #1f1b18) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.15) !important;
+  padding: 6px !important;
+  z-index: 9999999 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* Item-urile din lista de marimi */
+.size-dropdown-item,
+.size-dropdown-item.svelte-v18rvr {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  color: #f5f1ee !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  transition: all 0.15s ease !important;
+}
+
+.size-dropdown-item:hover,
+.size-dropdown-item.svelte-v18rvr:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+}
+
+.size-dropdown-item.active,
+.size-dropdown-item.active.svelte-v18rvr {
+  background: #feb414 !important;
+  border-color: #feb414 !important;
+  color: #1b1b1e !important;
+  font-weight: 700 !important;
+}
+
