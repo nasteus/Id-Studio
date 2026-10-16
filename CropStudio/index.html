@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="./icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>ID Studio</title>
+    <script>
+      (function() {
+        try {
+          var s = localStorage.getItem('app_state');
+          var theme = 'theme-aperture';
+          if (s) {
+            var p = JSON.parse(s);
+            if (p && p.appTheme) theme = p.appTheme;
+          }
+          document.documentElement.className = theme;
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="./assets/index-Bp0rKAwA.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-TgHUVkS-.css">
+  </head>
+  <body class="theme-aperture">
+    <div id="app"></div>
+    <script>
+      (function() {
+        var isArranging = false;
+        var rafId = null;
+
+        function arrangeBottomBar() {
+          if (isArranging) return;
+          var bottomBar = document.querySelector('.horizon-control-panel');
+          if (!bottomBar) return;
+
+          // 1. Selector Marime
+          var sizeDropdown = document.querySelector('.editbar-dropdown-wrapper:not(.copies-dropdown-wrapper)');
+          // 2. Selector Numar Copii
+          var copiesDropdown = document.querySelector('.copies-dropdown-wrapper');
+          // 3. Oglindire Orizontala (Flip H)
+          var flipHBtn = bottomBar.querySelector('button[title*="Flip H"], button[title*="Oglindire Orizontal"]') ? bottomBar.querySelector('button[title*="Flip H"], button[title*="Oglindire Orizontal"]').closest('.hole-container') : null;
+          // 4. Rotire 90 dreapta (+90)
+          var rotateRightBtn = bottomBar.querySelector('button[title*="dreapta"], button[title*="+90"]') ? bottomBar.querySelector('button[title*="dreapta"], button[title*="+90"]').closest('.hole-container') : null;
+          // 5. Slider Orizont
+          var slider = bottomBar.querySelector('.horizon-slider-pill') ? (bottomBar.querySelector('.horizon-slider-pill').closest('.hole-container-pill') || bottomBar.querySelector('.horizon-slider-pill')) : null;
+          // 6. Unghi Orizont (0.0°)
+          var horizonAngleBtn = bottomBar.querySelector('button[title*="Unghi Orizont"]') ? bottomBar.querySelector('button[title*="Unghi Orizont"]').closest('.hole-container') : null;
+          // 7. Reset Decupare (R)
+          var resetBtn = bottomBar.querySelector('button.reset-btn, button[title*="Resetează Decuparea"]') ? bottomBar.querySelector('button.reset-btn, button[title*="Resetează Decuparea"]').closest('.hole-container') : null;
+
+          var targetOrder = [
+            sizeDropdown,
+            copiesDropdown,
+            flipHBtn,
+            rotateRightBtn,
+            slider,
+            horizonAngleBtn,
+            resetBtn
+          ].filter(Boolean);
+
+          if (targetOrder.length < 2) return;
+
+          var currentChildren = Array.from(bottomBar.children);
+          var alreadyCorrect = targetOrder.every(function(item, idx) {
+            return currentChildren[idx] === item;
+          });
+
+          if (alreadyCorrect) return;
+
+          isArranging = true;
+          if (observer) observer.disconnect();
+          try {
+            for (var i = 0; i < targetOrder.length; i++) {
+              bottomBar.appendChild(targetOrder[i]);
+            }
+          } finally {
+            isArranging = false;
+            if (observer) observer.observe(document.body, { childList: true, subtree: true });
+          }
+        }
+
+        function scheduleArrange() {
+          if (isArranging || rafId) return;
+          rafId = requestAnimationFrame(function() {
+            rafId = null;
+            arrangeBottomBar();
+          });
+        }
+
+        var observer = new MutationObserver(scheduleArrange);
+        observer.observe(document.body, { childList: true, subtree: true });
+        window.addEventListener('DOMContentLoaded', scheduleArrange);
+        window.addEventListener('load', scheduleArrange);
+      })();
+    </script>
+  </body>
+</html>
