@@ -59,6 +59,18 @@
   box-sizing: border-box !important;
 }
 
+/* Formatul 5x5 cm: 2 miniaturi aliniate pe 1 singura coloana cu spatiu de 1cm intre ele */
+.id-studio-sheet.is-size-5x5 .id-studio-sheet-grid {
+  grid-template-columns: auto !important;
+  grid-template-rows: repeat(2, auto) !important;
+  column-gap: 0px !important;
+}
+
+.id-studio-sheet.is-size-5x5 .id-studio-photo-slot[data-slot="2"],
+.id-studio-sheet.is-size-5x5 .id-studio-photo-slot[data-slot="3"] {
+  display: none !important;
+}
+
 /* Fiecare celula foto de pe coala */
 .id-studio-photo-slot {
   position: relative !important;
@@ -112,6 +124,26 @@
 div.horizon-control-panel {
   overflow: visible !important;
   z-index: 100 !important;
+  width: auto !important;
+  max-width: calc(100vw - 20px) !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+
+.brightness-control-panel,
+.brightness-control-panel.svelte-v18rvr,
+.contrast-control-panel,
+.contrast-control-panel.svelte-v18rvr,
+.highlights-control-panel,
+.highlights-control-panel.svelte-v18rvr,
+.shadows-control-panel,
+.shadows-control-panel.svelte-v18rvr {
+  overflow: visible !important;
+  z-index: 100 !important;
+  width: 380px !important;
+  max-width: calc(100vw - 24px) !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
 }
 
 .horizon-floating-container,

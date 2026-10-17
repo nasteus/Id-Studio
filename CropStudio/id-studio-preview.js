@@ -45,22 +45,60 @@
     return sheet;
   }
 
+  var cachedSize = { w: 3.5, h: 4.5 };
+
   /**
    * Extrage dimensiunea in centimetri selectata curent in bara de comenzi
    */
   function getSelectedSizeCm() {
+    // 1. Incercam citirea din DOM din elementul dropdown
     var sizeDropdown = document.querySelector('.editbar-dropdown-wrapper:not(.copies-dropdown-wrapper)');
     if (sizeDropdown) {
       var txt = sizeDropdown.innerText || sizeDropdown.textContent || '';
       var match = txt.match(/([\d\.]+)\s*[×xX\:\/]\s*([\d\.]+)/);
       if (match) {
-        return {
+        cachedSize = {
           w: parseFloat(match[1]),
           h: parseFloat(match[2])
         };
+        return cachedSize;
       }
     }
-    return { w: 3.5, h: 4.5 };
+
+    // 2. Incercam citirea din starea persistata de Svelte in localStorage
+    try {
+      var activePreset = localStorage.getItem('crop_studio_active_preset');
+      if (activePreset) {
+        var pMatch = activePreset.match(/([\d\.]+)\s*[:xX×]\s*([\d\.]+)/);
+        if (pMatch) {
+          cachedSize = {
+            w: parseFloat(pMatch[1]),
+            h: parseFloat(pMatch[2])
+          };
+          return cachedSize;
+        }
+      }
+
+      var photoStatesStr = localStorage.getItem('crop_studio_photo_states');
+      if (photoStatesStr) {
+        var states = JSON.parse(photoStatesStr);
+        for (var k in states) {
+          if (states[k] && states[k].preset) {
+            var sMatch = states[k].preset.match(/([\d\.]+)\s*[:xX×]\s*([\d\.]+)/);
+            if (sMatch) {
+              cachedSize = {
+                w: parseFloat(sMatch[1]),
+                h: parseFloat(sMatch[2])
+              };
+              return cachedSize;
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 3. Pastram dimensiunea valida anterioara (nu revenim niciodata involuntar la 3.5x4.5)
+    return cachedSize;
   }
 
   /**
@@ -173,44 +211,102 @@
         photoH_cm = Math.max(selW, selH);
       }
 
-      // Raportarea exacta a pozei la coala de 8.9 x 12.7 cm
-      // Daca 2 poze depasesc coala (ex: formate mari), le scalam proportional pentru a incapea pe coala
-      var scaleFactor = 1.0;
-      var maxAllowedW = 8.9 - 0.4;
-      var maxAllowedH = 12.7 - 0.4;
-      if ((2 * photoW_cm > maxAllowedW) || (2 * photoH_cm > maxAllowedH)) {
-        scaleFactor = Math.min(maxAllowedW / (2 * photoW_cm), maxAllowedH / (2 * photoH_cm));
-      }
+      var is5x5 = (selW === 5 && selH === 5);
+      sheetEl.classList.toggle('is-size-5x5', is5x5);
 
-      // Calculam dimensiunea in pixeli a miniaturii raportata la coala
-      var slotW = Math.round(sheetW * ((photoW_cm * scaleFactor) / 8.9));
-      var slotH = Math.round(sheetH * ((photoH_cm * scaleFactor) / 12.7));
+      var grid = sheetEl.querySelector('.id-studio-sheet-grid');
+      var slotW, slotH, scale;
 
-      // Scalarea imaginii de la cadrul principal (frameW, frameH) la miniatura (slotW, slotH)
-      var scale = slotW / frameW;
-
-      for (var i = 0; i < slots.length; i++) {
-        var slot = slots[i];
-        slot.style.width = slotW + 'px';
-        slot.style.height = slotH + 'px';
-
-        var scaler = slotScalers[i];
-        if (scaler) {
-          scaler.style.width = frameW + 'px';
-          scaler.style.height = frameH + 'px';
-          scaler.style.transform = 'scale(' + scale + ')';
+      if (is5x5) {
+        // Pentru formatul 5x5 cm:
+        // Coala are 8.9 cm latime si 12.7 cm inaltime.
+        // 2 miniaturi patrate de 5 x 5 cm, asezate pe o singura coloana verticala.
+        // Spatiu exact de 1 cm intre ele:
+        var gapY = Math.round(sheetH * (1.0 / 12.7));
+        if (grid) {
+          grid.style.setProperty('gap', gapY + 'px 0px', 'important');
+          grid.style.setProperty('row-gap', gapY + 'px', 'important');
+          grid.style.setProperty('column-gap', '0px', 'important');
         }
 
-        var img = slotImgs[i];
-        if (img) {
-          if (img.getAttribute('src') !== src) {
-            img.setAttribute('src', src);
+        // Marimea miniaturii raportata la coala fizica (5cm raportat la 12.7cm inaltime)
+        slotH = Math.round(sheetH * (5.0 / 12.7));
+        slotW = slotH; // Este patrat perfect 5x5 cm
+        scale = slotW / frameW;
+
+        for (var i = 0; i < slots.length; i++) {
+          var slot = slots[i];
+          if (i < 2) {
+            slot.style.display = '';
+            slot.style.width = slotW + 'px';
+            slot.style.height = slotH + 'px';
+
+            var scaler = slotScalers[i];
+            if (scaler) {
+              scaler.style.width = frameW + 'px';
+              scaler.style.height = frameH + 'px';
+              scaler.style.transform = 'scale(' + scale + ')';
+            }
+
+            var img = slotImgs[i];
+            if (img) {
+              if (img.getAttribute('src') !== src) {
+                img.setAttribute('src', src);
+              }
+              img.style.width = imgW;
+              img.style.height = imgH;
+              img.style.transform = transform;
+              img.style.transformOrigin = mainImg.style.transformOrigin || 'center center';
+              img.style.filter = filter;
+            }
+          } else {
+            slot.style.display = 'none';
           }
-          img.style.width = imgW;
-          img.style.height = imgH;
-          img.style.transform = transform;
-          img.style.transformOrigin = mainImg.style.transformOrigin || 'center center';
-          img.style.filter = filter;
+        }
+      } else {
+        if (grid) {
+          grid.style.setProperty('gap', '6px 6px', 'important');
+          grid.style.setProperty('row-gap', '6px', 'important');
+          grid.style.setProperty('column-gap', '6px', 'important');
+        }
+
+        // Raportarea exacta a pozei la coala de 8.9 x 12.7 cm
+        var scaleFactor = 1.0;
+        var maxAllowedW = 8.9 - 0.4;
+        var maxAllowedH = 12.7 - 0.4;
+        if ((2 * photoW_cm > maxAllowedW) || (2 * photoH_cm > maxAllowedH)) {
+          scaleFactor = Math.min(maxAllowedW / (2 * photoW_cm), maxAllowedH / (2 * photoH_cm));
+        }
+
+        // Calculam dimensiunea in pixeli a miniaturii raportata la coala
+        slotW = Math.round(sheetW * ((photoW_cm * scaleFactor) / 8.9));
+        slotH = Math.round(sheetH * ((photoH_cm * scaleFactor) / 12.7));
+        scale = slotW / frameW;
+
+        for (var i = 0; i < slots.length; i++) {
+          var slot = slots[i];
+          slot.style.display = '';
+          slot.style.width = slotW + 'px';
+          slot.style.height = slotH + 'px';
+
+          var scaler = slotScalers[i];
+          if (scaler) {
+            scaler.style.width = frameW + 'px';
+            scaler.style.height = frameH + 'px';
+            scaler.style.transform = 'scale(' + scale + ')';
+          }
+
+          var img = slotImgs[i];
+          if (img) {
+            if (img.getAttribute('src') !== src) {
+              img.setAttribute('src', src);
+            }
+            img.style.width = imgW;
+            img.style.height = imgH;
+            img.style.transform = transform;
+            img.style.transformOrigin = mainImg.style.transformOrigin || 'center center';
+            img.style.filter = filter;
+          }
         }
       }
     }

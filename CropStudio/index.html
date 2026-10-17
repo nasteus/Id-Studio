@@ -31,41 +31,98 @@
       (function() {
         var isArranging = false;
         var rafId = null;
+        var savedSizeDropdown = null;
+        var savedCopiesDropdown = null;
+
+        var dropdownParking = document.getElementById('id-studio-dropdown-parking');
+        if (!dropdownParking) {
+          dropdownParking = document.createElement('div');
+          dropdownParking.id = 'id-studio-dropdown-parking';
+          dropdownParking.style.display = 'none';
+          document.body.appendChild(dropdownParking);
+        }
 
         function arrangeBottomBar() {
           if (isArranging) return;
           var bottomBar = document.querySelector('.horizon-control-panel');
           if (!bottomBar) return;
 
-          // 1. Selector Marime
+          // 1. Selector Marime (cautat in DOM sau preluat din memorie/parking)
           var sizeDropdown = document.querySelector('.editbar-dropdown-wrapper:not(.copies-dropdown-wrapper)');
+          if (sizeDropdown) {
+            savedSizeDropdown = sizeDropdown;
+          } else if (savedSizeDropdown) {
+            sizeDropdown = savedSizeDropdown;
+          }
+
           // 2. Selector Numar Copii
           var copiesDropdown = document.querySelector('.copies-dropdown-wrapper');
-          // 3. Oglindire Orizontala (Flip H)
-          var flipHBtn = bottomBar.querySelector('button[title*="Flip H"], button[title*="Oglindire Orizontal"]') ? bottomBar.querySelector('button[title*="Flip H"], button[title*="Oglindire Orizontal"]').closest('.hole-container') : null;
-          // 4. Rotire 90 dreapta (+90)
-          var rotateRightBtn = bottomBar.querySelector('button[title*="dreapta"], button[title*="+90"]') ? bottomBar.querySelector('button[title*="dreapta"], button[title*="+90"]').closest('.hole-container') : null;
-          // 5. Slider Orizont
-          var slider = bottomBar.querySelector('.horizon-slider-pill') ? (bottomBar.querySelector('.horizon-slider-pill').closest('.hole-container-pill') || bottomBar.querySelector('.horizon-slider-pill')) : null;
-          // 6. Unghi Orizont (0.0°)
-          var horizonAngleBtn = bottomBar.querySelector('button[title*="Unghi Orizont"]') ? bottomBar.querySelector('button[title*="Unghi Orizont"]').closest('.hole-container') : null;
-          // 7. Reset Decupare (R)
-          var resetBtn = bottomBar.querySelector('button.reset-btn, button[title*="Resetează Decuparea"]') ? bottomBar.querySelector('button.reset-btn, button[title*="Resetează Decuparea"]').closest('.hole-container') : null;
+          if (copiesDropdown) {
+            savedCopiesDropdown = copiesDropdown;
+          } else if (savedCopiesDropdown) {
+            copiesDropdown = savedCopiesDropdown;
+          }
 
-          var targetOrder = [
-            sizeDropdown,
-            copiesDropdown,
-            flipHBtn,
-            rotateRightBtn,
-            slider,
-            horizonAngleBtn,
-            resetBtn
-          ].filter(Boolean);
+          var isAdjustmentPanel = bottomBar.classList.contains('brightness-control-panel') ||
+                                  bottomBar.classList.contains('contrast-control-panel') ||
+                                  bottomBar.classList.contains('highlights-control-panel') ||
+                                  bottomBar.classList.contains('shadows-control-panel');
+
+          var targetOrder;
+
+          if (isAdjustmentPanel) {
+            // Mod ajustari imagine: Parcam dropdown-urile sa nu fie vizibile
+            if (sizeDropdown && sizeDropdown.parentNode !== dropdownParking) {
+              dropdownParking.appendChild(sizeDropdown);
+            }
+            if (copiesDropdown && copiesDropdown.parentNode !== dropdownParking) {
+              dropdownParking.appendChild(copiesDropdown);
+            }
+
+            // In bara de jos ramane EXCLUSIV: [ Reset (R), Slider complet, OK (Confirmare) ]
+            var adjResetBtn = bottomBar.querySelector('button.reset-btn') ? bottomBar.querySelector('button.reset-btn').closest('.hole-container') : null;
+            var adjSlider = bottomBar.querySelector('.horizon-slider-pill') ? (bottomBar.querySelector('.horizon-slider-pill').closest('.hole-container-pill') || bottomBar.querySelector('.horizon-slider-pill')) : null;
+            var adjConfirmBtn = bottomBar.querySelector('button.confirm-brightness-btn') ? bottomBar.querySelector('button.confirm-brightness-btn').closest('.hole-container') : null;
+
+            // La apasarea tastei R in modul de ajustare: reseteaza si iese inapoi la bottombar normal
+            if (adjResetBtn && !adjResetBtn.__hasExitOnReset) {
+              adjResetBtn.__hasExitOnReset = true;
+              adjResetBtn.addEventListener('click', function() {
+                setTimeout(function() {
+                  var confirm = bottomBar.querySelector('button.confirm-brightness-btn');
+                  if (confirm) confirm.click();
+                }, 40);
+              });
+            }
+
+            targetOrder = [
+              adjResetBtn,
+              adjSlider,
+              adjConfirmBtn
+            ].filter(Boolean);
+          } else {
+            // Mod normal: Decupare & Orizont complet (restabilim dropdown-urile in fata)
+            var flipHBtn = bottomBar.querySelector('button[title*="Flip H"], button[title*="Oglindire Orizontal"]') ? bottomBar.querySelector('button[title*="Flip H"], button[title*="Oglindire Orizontal"]').closest('.hole-container') : null;
+            var rotateRightBtn = bottomBar.querySelector('button[title*="dreapta"], button[title*="+90"]') ? bottomBar.querySelector('button[title*="dreapta"], button[title*="+90"]').closest('.hole-container') : null;
+            var slider = bottomBar.querySelector('.horizon-slider-pill') ? (bottomBar.querySelector('.horizon-slider-pill').closest('.hole-container-pill') || bottomBar.querySelector('.horizon-slider-pill')) : null;
+            var horizonAngleBtn = bottomBar.querySelector('button[title*="Unghi Orizont"]') ? bottomBar.querySelector('button[title*="Unghi Orizont"]').closest('.hole-container') : null;
+            var resetBtn = bottomBar.querySelector('button.reset-btn, button[title*="Resetează Decuparea"]') ? bottomBar.querySelector('button.reset-btn, button[title*="Resetează Decuparea"]').closest('.hole-container') : null;
+
+            targetOrder = [
+              sizeDropdown,
+              copiesDropdown,
+              flipHBtn,
+              rotateRightBtn,
+              slider,
+              horizonAngleBtn,
+              resetBtn
+            ].filter(Boolean);
+          }
 
           if (targetOrder.length < 2) return;
 
           var currentChildren = Array.from(bottomBar.children);
-          var alreadyCorrect = targetOrder.every(function(item, idx) {
+          var alreadyCorrect = targetOrder.length === currentChildren.length && targetOrder.every(function(item, idx) {
             return currentChildren[idx] === item;
           });
 
