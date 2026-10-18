@@ -24,6 +24,9 @@
           if (!currentPreset || validPresets.indexOf(currentPreset) === -1) {
             localStorage.setItem('id_studio_active_preset', '3.5:4.5');
           }
+          if (!localStorage.getItem('id_studio_editor_mode')) {
+            localStorage.setItem('id_studio_editor_mode', 'simple');
+          }
           var statesStr = localStorage.getItem('id_studio_photo_states');
           if (statesStr) {
             var states = JSON.parse(statesStr);
@@ -51,9 +54,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index-idstudio-v4.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-TgHUVkS-.css?v=5">
-    <link rel="stylesheet" href="./id-studio-preview.css?v=6">
+    <script type="module" crossorigin src="./assets/index-idstudio-v7.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-TgHUVkS-.css?v=11">
+    <link rel="stylesheet" href="./id-studio-preview.css?v=11">
   </head>
   <body class="theme-aperture">
     <div id="app"></div>
@@ -63,6 +66,11 @@
         var rafId = null;
         var savedSizeDropdown = null;
         var savedCopiesDropdown = null;
+        var savedSlider = null;
+        var savedHorizonAngleBtn = null;
+        var savedResetBtn = null;
+        var savedFlipHBtn = null;
+        var savedRotateRightBtn = null;
 
         var dropdownParking = document.getElementById('id-studio-dropdown-parking');
         if (!dropdownParking) {
@@ -73,6 +81,11 @@
         }
 
         function arrangeBottomBar() {
+          var fillBtn = document.querySelector('button[title*="Fill In"], button[title*="Fit In"]');
+          if (fillBtn) {
+            var fParent = fillBtn.closest('.hole-container') || fillBtn;
+            fParent.style.setProperty('display', 'none', 'important');
+          }
           if (isArranging) return;
           var bottomBar = document.querySelector('.horizon-control-panel');
           if (!bottomBar) return;
@@ -91,6 +104,46 @@
             savedCopiesDropdown = copiesDropdown;
           } else if (savedCopiesDropdown) {
             copiesDropdown = savedCopiesDropdown;
+          }
+
+          // 3. Slider orizont
+          var slider = bottomBar.querySelector('.horizon-slider-pill') ? (bottomBar.querySelector('.horizon-slider-pill').closest('.hole-container-pill') || bottomBar.querySelector('.horizon-slider-pill')) : null;
+          if (slider) {
+            savedSlider = slider;
+          } else if (savedSlider) {
+            slider = savedSlider;
+          }
+
+          // 4. Buton Unghi Orizont (0.0°)
+          var horizonAngleBtn = bottomBar.querySelector('button[title*="Unghi Orizont"]') ? bottomBar.querySelector('button[title*="Unghi Orizont"]').closest('.hole-container') : null;
+          if (horizonAngleBtn) {
+            savedHorizonAngleBtn = horizonAngleBtn;
+          } else if (savedHorizonAngleBtn) {
+            horizonAngleBtn = savedHorizonAngleBtn;
+          }
+
+          // 5. Buton Resetare Decupare (R)
+          var resetBtn = bottomBar.querySelector('button.reset-btn, button[title*="Resetează Decuparea"]') ? bottomBar.querySelector('button.reset-btn, button[title*="Resetează Decuparea"]').closest('.hole-container') : null;
+          if (resetBtn) {
+            savedResetBtn = resetBtn;
+          } else if (savedResetBtn) {
+            resetBtn = savedResetBtn;
+          }
+
+          // 6. Buton Flip H
+          var flipHBtn = bottomBar.querySelector('button[title*="Flip H"], button[title*="Oglindire Orizontal"]') ? bottomBar.querySelector('button[title*="Flip H"], button[title*="Oglindire Orizontal"]').closest('.hole-container') : null;
+          if (flipHBtn) {
+            savedFlipHBtn = flipHBtn;
+          } else if (savedFlipHBtn) {
+            flipHBtn = savedFlipHBtn;
+          }
+
+          // 7. Buton Rotire 90° dreapta
+          var rotateRightBtn = bottomBar.querySelector('button[title*="dreapta"], button[title*="+90"]') ? bottomBar.querySelector('button[title*="dreapta"], button[title*="+90"]').closest('.hole-container') : null;
+          if (rotateRightBtn) {
+            savedRotateRightBtn = rotateRightBtn;
+          } else if (savedRotateRightBtn) {
+            rotateRightBtn = savedRotateRightBtn;
           }
 
           var isAdjustmentPanel = bottomBar.classList.contains('brightness-control-panel') ||
@@ -131,13 +184,18 @@
               adjConfirmBtn
             ].filter(Boolean);
           } else {
-            // Mod normal: Decupare & Orizont complet (restabilim dropdown-urile in fata)
-            var flipHBtn = bottomBar.querySelector('button[title*="Flip H"], button[title*="Oglindire Orizontal"]') ? bottomBar.querySelector('button[title*="Flip H"], button[title*="Oglindire Orizontal"]').closest('.hole-container') : null;
-            var rotateRightBtn = bottomBar.querySelector('button[title*="dreapta"], button[title*="+90"]') ? bottomBar.querySelector('button[title*="dreapta"], button[title*="+90"]').closest('.hole-container') : null;
-            var slider = bottomBar.querySelector('.horizon-slider-pill') ? (bottomBar.querySelector('.horizon-slider-pill').closest('.hole-container-pill') || bottomBar.querySelector('.horizon-slider-pill')) : null;
-            var horizonAngleBtn = bottomBar.querySelector('button[title*="Unghi Orizont"]') ? bottomBar.querySelector('button[title*="Unghi Orizont"]').closest('.hole-container') : null;
-            var resetBtn = bottomBar.querySelector('button.reset-btn, button[title*="Resetează Decuparea"]') ? bottomBar.querySelector('button.reset-btn, button[title*="Resetează Decuparea"]').closest('.hole-container') : null;
+            // Mod normal: Decupare & Orizont
+            var isSimple = !!document.querySelector('.crop-studio-root.mode-simple');
 
+            // Toggle vizibilitate Flip H si Rotire Dreapta in mod simplu vs avansat fara a le deconecta din DOM
+            if (flipHBtn) {
+              flipHBtn.style.display = isSimple ? 'none' : '';
+            }
+            if (rotateRightBtn) {
+              rotateRightBtn.style.display = isSimple ? 'none' : '';
+            }
+
+            // Sliderul, unghiul si resetarea raman permanente in bara de jos
             targetOrder = [
               sizeDropdown,
               copiesDropdown,
@@ -166,7 +224,7 @@
             }
           } finally {
             isArranging = false;
-            if (observer) observer.observe(document.body, { childList: true, subtree: true });
+            if (observer) observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
           }
         }
 
@@ -178,12 +236,20 @@
           });
         }
 
+        document.addEventListener('click', function(e) {
+          if (e.target && e.target.closest('.mode-toggle-btn')) {
+            setTimeout(scheduleArrange, 10);
+            setTimeout(scheduleArrange, 50);
+            setTimeout(scheduleArrange, 150);
+          }
+        });
+
         var observer = new MutationObserver(scheduleArrange);
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
         window.addEventListener('DOMContentLoaded', scheduleArrange);
         window.addEventListener('load', scheduleArrange);
       })();
     </script>
-    <script src="./id-studio-preview.js?v=6"></script>
+    <script src="./id-studio-preview.js?v=11"></script>
   </body>
 </html>

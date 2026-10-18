@@ -29,6 +29,10 @@
   function createSheet() {
     var sheet = document.createElement('div');
     sheet.className = 'id-studio-sheet';
+    var initialBg = localStorage.getItem('id_studio_sheet_bg') || '#808080';
+    sheet.style.setProperty('background', initialBg, 'important');
+    document.documentElement.style.setProperty('--id-studio-sheet-bg', initialBg);
+
     sheet.innerHTML = [
       '<div class="id-studio-sheet-grid">',
       '  <div class="id-studio-photo-slot" data-slot="0"><div class="id-studio-slot-scaler"><img draggable="false" /></div></div>',
@@ -337,7 +341,382 @@
       }
     }
 
+    ensureColorPickerInTopbar();
     requestAnimationFrame(sync);
+  }
+
+  /* ========================================================
+     Color Picker & Sheet Background Manager (Aperture Theme)
+     ======================================================== */
+  function rgbToHsv(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h = 0, s = 0, v = max;
+    var d = max - min;
+    s = max === 0 ? 0 : d / max;
+    if (max !== min) {
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return { h: Math.round(h * 360), s: s, v: v };
+  }
+
+  function hsvToRgb(h, s, v) {
+    var r, g, b;
+    var i = Math.floor((h / 60) % 6);
+    var f = (h / 60) - Math.floor(h / 60);
+    var p = v * (1 - s);
+    var q = v * (1 - f * s);
+    var t = v * (1 - (1 - f) * s);
+    switch (i) {
+      case 0: r = v; g = t; b = p; break;
+      case 1: r = q; g = v; b = p; break;
+      case 2: r = p; g = v; b = t; break;
+      case 3: r = p; g = q; b = v; break;
+      case 4: r = t; g = p; b = v; break;
+      case 5: r = v; g = p; b = q; break;
+    }
+    return {
+      r: Math.round(r * 255),
+      g: Math.round(g * 255),
+      b: Math.round(b * 255)
+    };
+  }
+
+  function hexToRgb(hex) {
+    hex = (hex || '').replace('#', '').trim();
+    if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    if (hex.length !== 6) return { r: 128, g: 128, b: 128 };
+    var num = parseInt(hex, 16);
+    if (isNaN(num)) return { r: 128, g: 128, b: 128 };
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  }
+
+  function rgbToHex(r, g, b) {
+    var bin = (r << 16) | (g << 8) | b;
+    return '#' + bin.toString(16).padStart(6, '0').toUpperCase();
+  }
+
+  var PRESET_COLORS = [
+    { name: 'Neutral Gray', hex: '#808080' },
+    { name: 'Alb Pur', hex: '#FFFFFF' },
+    { name: 'Alb Cald', hex: '#F4F4F0' },
+    { name: 'Gri Deschis', hex: '#D0D0D0' },
+    { name: 'Gri 18%', hex: '#777777' },
+    { name: 'Gri Închis', hex: '#333333' },
+    { name: 'Negru', hex: '#000000' }
+  ];
+
+  var currH = 0;
+  var currS = 0;
+  var currV = 0.502;
+  var isPopoverOpen = false;
+  var popoverEl = null;
+
+  function updateSheetBg(hex, updateInputs) {
+    if (!hex || !hex.startsWith('#')) hex = '#808080';
+    hex = hex.toUpperCase();
+    document.documentElement.style.setProperty('--id-studio-sheet-bg', hex);
+    if (sheetEl) {
+      sheetEl.style.setProperty('background', hex, 'important');
+    }
+    var disk = document.querySelector('.id-studio-color-disk');
+    if (disk) {
+      disk.style.backgroundColor = hex;
+    }
+    try {
+      localStorage.setItem('id_studio_sheet_bg', hex);
+    } catch (e) {}
+
+    if (updateInputs && popoverEl) {
+      syncPopoverUI(hex);
+    }
+  }
+
+  function syncPopoverUI(hex) {
+    if (!popoverEl) return;
+    var previewSwatch = popoverEl.querySelector('.id-studio-popover-preview-swatch');
+    if (previewSwatch) previewSwatch.style.backgroundColor = hex;
+
+    var hexField = popoverEl.querySelector('.id-studio-hex-field');
+    if (hexField && document.activeElement !== hexField) {
+      hexField.value = hex.replace('#', '');
+    }
+
+    var svArea = popoverEl.querySelector('.id-studio-sv-area');
+    var svThumb = popoverEl.querySelector('.id-studio-sv-thumb');
+    var hueThumb = popoverEl.querySelector('.id-studio-hue-thumb');
+
+    if (svArea) svArea.style.backgroundColor = 'hsl(' + currH + ', 100%, 50%)';
+    if (svThumb) {
+      svThumb.style.left = (currS * 100) + '%';
+      svThumb.style.top = ((1 - currV) * 100) + '%';
+      svThumb.style.backgroundColor = hex;
+    }
+    if (hueThumb) {
+      hueThumb.style.left = ((currH / 360) * 100) + '%';
+      hueThumb.style.backgroundColor = 'hsl(' + currH + ', 100%, 50%)';
+    }
+
+    // Actualizare starea chip-urilor presetate
+    var chips = popoverEl.querySelectorAll('.id-studio-preset-chip');
+    chips.forEach(function(chip) {
+      var chipHex = chip.getAttribute('data-hex');
+      if (chipHex && chipHex.toUpperCase() === hex.toUpperCase()) {
+        chip.classList.add('active');
+      } else {
+        chip.classList.remove('active');
+      }
+    });
+  }
+
+  function setColorFromHex(hex) {
+    var rgb = hexToRgb(hex);
+    var hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+    currH = hsv.h;
+    currS = hsv.s;
+    currV = hsv.v;
+    updateSheetBg(hex, true);
+  }
+
+  function applyHsvFromInteraction() {
+    var rgb = hsvToRgb(currH, currS, currV);
+    var hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+    updateSheetBg(hex, true);
+  }
+
+  function createColorPopover(parentHole) {
+    if (popoverEl) popoverEl.remove();
+
+    popoverEl = document.createElement('div');
+    popoverEl.className = 'id-studio-color-popover';
+
+    var currentHex = localStorage.getItem('id_studio_sheet_bg') || '#808080';
+    var rgb = hexToRgb(currentHex);
+    var hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+    currH = hsv.h; currS = hsv.s; currV = hsv.v;
+
+    // Presets HTML
+    var presetsHtml = PRESET_COLORS.map(function(p) {
+      var isActive = p.hex.toUpperCase() === currentHex.toUpperCase() ? ' active' : '';
+      return '<button type="button" class="id-studio-preset-chip' + isActive + '" data-hex="' + p.hex + '" title="' + p.name + ' (' + p.hex + ')" style="background-color: ' + p.hex + ';"></button>';
+    }).join('');
+
+    popoverEl.innerHTML = [
+      '<div class="id-studio-popover-header">',
+      '  <span class="id-studio-popover-title">Culoare Fundal</span>',
+      '  <button type="button" class="id-studio-neutral-gray-btn" title="Seteaz\u0103 Neutral Gray (#808080)">Neutral Gray</button>',
+      '</div>',
+      '<div class="id-studio-presets-row">',
+      presetsHtml,
+      '</div>',
+      '<div class="id-studio-sv-area" style="background-color: hsl(' + currH + ', 100%, 50%);">',
+      '  <div class="id-studio-sv-white"></div>',
+      '  <div class="id-studio-sv-black"></div>',
+      '  <div class="id-studio-sv-thumb" style="left: ' + (currS * 100) + '%; top: ' + ((1 - currV) * 100) + '%; background-color: ' + currentHex + ';"></div>',
+      '</div>',
+      '<div class="id-studio-hue-slider">',
+      '  <div class="id-studio-hue-thumb" style="left: ' + ((currH / 360) * 100) + '%; background-color: hsl(' + currH + ', 100%, 50%);"></div>',
+      '</div>',
+      '<div class="id-studio-popover-bottom">',
+      '  <div class="id-studio-popover-preview-swatch" style="background-color: ' + currentHex + ';"></div>',
+      '  <div class="id-studio-hex-input-wrap">',
+      '    <span class="id-studio-hex-hash">#</span>',
+      '    <input type="text" class="id-studio-hex-field" maxlength="6" value="' + currentHex.replace('#', '') + '" spellcheck="false" />',
+      '  </div>',
+      '</div>'
+    ].join('\n');
+
+    // 1. Interacțiune pe SV Area (2D Saturation / Value)
+    var svArea = popoverEl.querySelector('.id-studio-sv-area');
+    function handleSvPointer(e) {
+      var rect = svArea.getBoundingClientRect();
+      var clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+      var clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
+      var x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+      var y = Math.max(0, Math.min(rect.height, clientY - rect.top));
+      currS = x / rect.width;
+      currV = 1 - (y / rect.height);
+      applyHsvFromInteraction();
+    }
+
+    var isDraggingSv = false;
+    svArea.addEventListener('pointerdown', function(e) {
+      isDraggingSv = true;
+      svArea.setPointerCapture(e.pointerId);
+      handleSvPointer(e);
+    });
+    svArea.addEventListener('pointermove', function(e) {
+      if (isDraggingSv) handleSvPointer(e);
+    });
+    svArea.addEventListener('pointerup', function(e) {
+      if (isDraggingSv) {
+        isDraggingSv = false;
+        try { svArea.releasePointerCapture(e.pointerId); } catch(err) {}
+      }
+    });
+
+    // 2. Interacțiune pe Hue Slider
+    var hueSlider = popoverEl.querySelector('.id-studio-hue-slider');
+    function handleHuePointer(e) {
+      var rect = hueSlider.getBoundingClientRect();
+      var clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+      var x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+      currH = Math.round((x / rect.width) * 360);
+      if (currH >= 360) currH = 359;
+      applyHsvFromInteraction();
+    }
+
+    var isDraggingHue = false;
+    hueSlider.addEventListener('pointerdown', function(e) {
+      isDraggingHue = true;
+      hueSlider.setPointerCapture(e.pointerId);
+      handleHuePointer(e);
+    });
+    hueSlider.addEventListener('pointermove', function(e) {
+      if (isDraggingHue) handleHuePointer(e);
+    });
+    hueSlider.addEventListener('pointerup', function(e) {
+      if (isDraggingHue) {
+        isDraggingHue = false;
+        try { hueSlider.releasePointerCapture(e.pointerId); } catch(err) {}
+      }
+    });
+
+    // 3. Preset chips
+    popoverEl.querySelectorAll('.id-studio-preset-chip').forEach(function(chip) {
+      chip.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var hex = this.getAttribute('data-hex');
+        if (hex) setColorFromHex(hex);
+      });
+    });
+
+    // 4. Buton Neutral Gray din header
+    var neutralBtn = popoverEl.querySelector('.id-studio-neutral-gray-btn');
+    if (neutralBtn) {
+      neutralBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        setColorFromHex('#808080');
+      });
+    }
+
+    // 5. Hex field input
+    var hexField = popoverEl.querySelector('.id-studio-hex-field');
+    if (hexField) {
+      hexField.addEventListener('input', function() {
+        var clean = this.value.replace(/[^0-9A-Fa-f]/g, '');
+        if (clean.length === 6) {
+          setColorFromHex('#' + clean);
+        }
+      });
+      hexField.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          var clean = this.value.replace(/[^0-9A-Fa-f]/g, '');
+          if (clean.length === 3) clean = clean[0] + clean[0] + clean[1] + clean[1] + clean[2] + clean[2];
+          if (clean.length === 6) setColorFromHex('#' + clean);
+          closeColorPopover();
+        }
+      });
+    }
+
+    // Oprim propagarea click-urilor in interiorul popover-ului
+    popoverEl.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+
+    parentHole.appendChild(popoverEl);
+    isPopoverOpen = true;
+
+    // Sincronizam vizual
+    syncPopoverUI(currentHex);
+  }
+
+  function closeColorPopover() {
+    if (popoverEl) {
+      popoverEl.remove();
+      popoverEl = null;
+    }
+    isPopoverOpen = false;
+  }
+
+  function toggleColorPopover(parentHole) {
+    if (isPopoverOpen && popoverEl) {
+      closeColorPopover();
+    } else {
+      createColorPopover(parentHole);
+    }
+  }
+
+  // Închidere la click în afara ferestrei sau la tasta Escape
+  document.addEventListener('click', function(e) {
+    if (isPopoverOpen && popoverEl) {
+      var pickerHole = document.getElementById('id-studio-bg-color-picker-hole');
+      if (pickerHole && !pickerHole.contains(e.target)) {
+        closeColorPopover();
+      }
+    }
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && isPopoverOpen) {
+      closeColorPopover();
+    }
+  });
+
+  function ensureColorPickerInTopbar() {
+    var topbarReset = document.querySelector('.editbar-control-panel button.reset-btn');
+    if (!topbarReset) return;
+    var resetHole = topbarReset.closest('.hole-container');
+    if (!resetHole || !resetHole.parentNode) return;
+
+    var existing = document.getElementById('id-studio-bg-color-picker-hole');
+    if (existing) {
+      if (existing.nextElementSibling !== resetHole) {
+        resetHole.parentNode.insertBefore(existing, resetHole);
+      }
+      return;
+    }
+
+    var currentBg = localStorage.getItem('id_studio_sheet_bg') || '#808080';
+
+    var pickerHole = document.createElement('div');
+    pickerHole.className = 'hole-container svelte-v18rvr id-studio-color-picker-hole';
+    pickerHole.id = 'id-studio-bg-color-picker-hole';
+
+    // Buton identic cu celelalte butoane din topbar: clasa silver-btn svelte-v18rvr
+    pickerHole.innerHTML = [
+      '<button type="button" class="silver-btn svelte-v18rvr id-studio-color-picker-btn" title="Culoare Fundal Coal\u0103 Foto (Neutral Gray)">',
+      '  <span class="id-studio-color-disk" style="background-color: ' + currentBg + ';"></span>',
+      '</button>'
+    ].join('');
+
+    var btn = pickerHole.querySelector('button');
+
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleColorPopover(pickerHole);
+    });
+
+    btn.addEventListener('dblclick', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      setColorFromHex('#808080');
+    });
+
+    if (!topbarReset.__hasColorResetListener) {
+      topbarReset.__hasColorResetListener = true;
+      topbarReset.addEventListener('click', function() {
+        setColorFromHex('#808080');
+      });
+    }
+
+    resetHole.parentNode.insertBefore(pickerHole, resetHole);
   }
 
   // Pornire la incarcare

@@ -33,11 +33,8 @@
 
 
 /* Eliminare butoane comutare simplu/avansat si lucios/mat din topbar */
-.mode-toggle-btn,
 .paper-finish-pill,
-.paper-finish-btn,
-button.mode-toggle-btn,
-.editbar-floating-container > button:first-child {
+.paper-finish-btn {
     display: none !important;
 }
 

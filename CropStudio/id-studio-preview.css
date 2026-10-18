@@ -1,7 +1,29 @@
+:root {
+  --id-studio-sheet-bg: #808080;
+}
+
 /* ==========================================================================
    ID Studio - Coala Foto de Laborator (8.9 x 12.7 cm)
    Curat, proportional la scara reala, sincronizare 1:1 exacta
    ========================================================================== */
+
+/* Guidelines pentru treimi in casuta de editare (atat in mod simplu cat si in mod avansat) */
+.crop-box .grid-line,
+.canvas-viewport .crop-box .grid-line,
+.crop-box-container .grid-line,
+.grid-line.svelte-v18rvr,
+.mode-simple .grid-line,
+.mode-simple.svelte-v18rvr .grid-line {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ne asiguram ca pe miniaturi NU apar guidelines */
+.id-studio-sheet .grid-line,
+.id-studio-photo-slot .grid-line {
+  display: none !important;
+}
 
 /* Layout orizontal implicit (Desktop / Landscape) */
 .crop-studio-root .canvas-viewport:not(.empty-viewport) {
@@ -31,7 +53,7 @@
   position: relative !important;
   z-index: 25 !important; /* Deasupra umbrei 9999px a cadrului de editare */
   flex-shrink: 0 !important;
-  background: #ffffff !important;
+  background: var(--id-studio-sheet-bg, #808080) !important;
   border-radius: 2px !important;
   box-sizing: border-box !important;
   box-shadow:
@@ -76,19 +98,14 @@
   position: relative !important;
   overflow: hidden !important;
   box-sizing: border-box !important;
-  background: #f1f3f5 !important;
-  border: 1px dashed rgba(0, 0, 0, 0.28) !important;
+  background: #ffffff !important;
+  border: 1px solid #000000 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
 }
 
-/* Linii fine de ghidaj / taiere */
+/* Linii fine de ghidaj / taiere - eliminate pentru linie neagra continua */
 .id-studio-photo-slot::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border: 1px solid rgba(0, 0, 0, 0.14);
-  pointer-events: none;
-  z-index: 5;
+  display: none !important;
 }
 
 /* Scalerul intern care simuleaza cadrul principal */
@@ -226,4 +243,285 @@ div.editbar-dropdown-wrapper {
   color: #1b1b1e !important;
   font-weight: 700 !important;
 }
+
+
+/* Inlaturare buton comutare Fill/Fit din topbar */
+button[title*="Fill In"],
+button[title*="Fit In"],
+.hole-container:has(> button[title*="Fill In"]),
+.hole-container:has(> button[title*="Fit In"]) {
+  display: none !important;
+}
+
+/* ========================================================
+   Mod Simplu vs Mod Avansat
+   ======================================================== */
+
+/* In modul simplu: pastila topbar este ascunsa */
+.mode-simple .editbar-control-panel,
+.mode-simple .top-adjustments-panel {
+  display: none !important;
+}
+
+/* Cand topbar este ascuns, containerul pastreaza doar butonul de mod centrat */
+.mode-simple .editbar-floating-container {
+  justify-content: center !important;
+}
+
+/* In modul simplu: ascundem butoanele Oglindire orizontala si Rotire la dreapta din bottombar */
+.mode-simple .horizon-control-panel button[title*="Flip H"],
+.mode-simple .horizon-control-panel button[title*="Oglindire Orizontal"],
+.mode-simple .horizon-control-panel button[title*="dreapta"],
+.mode-simple .horizon-control-panel button[title*="+90"],
+.mode-simple .horizon-control-panel .hole-container:has(> button[title*="Flip H"]),
+.mode-simple .horizon-control-panel .hole-container:has(> button[title*="Oglindire Orizontal"]),
+.mode-simple .horizon-control-panel .hole-container:has(> button[title*="dreapta"]),
+.mode-simple .horizon-control-panel .hole-container:has(> button[title*="+90"]) {
+  display: none !important;
+}
+
+/* Sliderul, unghiul si resetarea raman permanente si vizibile in mod simplu si avansat */
+.horizon-control-panel .horizon-slider-pill,
+.horizon-control-panel .horizon-slider-pill.hole-container-pill,
+.horizon-control-panel .horizon-slider-pill .scroll-wheel-wrapper {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* ========================================================
+   Buton Color Picker in Topbar (in stanga butonului R din modul avansat)
+   ======================================================== */
+.id-studio-color-picker-hole {
+  position: relative !important;
+}
+
+.id-studio-color-picker-btn {
+  cursor: pointer !important;
+}
+
+/* Nucleul colorat din interiorul butonului */
+.id-studio-color-disk {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: var(--id-studio-sheet-bg, #808080);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 1px rgba(255, 255, 255, 0.2);
+  display: block;
+  pointer-events: none;
+  transition: background-color 0.15s ease;
+}
+
+/* ========================================================
+   Fereastra Color Picker cu design Aperture / Dark Theme
+   ======================================================== */
+.id-studio-color-popover {
+  position: absolute;
+  top: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 236px;
+  background: #2a2521;
+  background: linear-gradient(180deg, #3d3530 0%, #1f1b18 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  padding: 12px;
+  box-sizing: border-box;
+  z-index: 9999999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  user-select: none;
+  -webkit-user-select: none;
+  animation: idStudioPopoverFade 0.15s ease-out;
+}
+
+@keyframes idStudioPopoverFade {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Header Popover */
+.id-studio-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 2px;
+}
+
+.id-studio-popover-title {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.id-studio-neutral-gray-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  color: #f5f1ee;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.id-studio-neutral-gray-btn:hover {
+  background: #feb414;
+  border-color: #feb414;
+  color: #1b1b1e;
+  font-weight: 700;
+}
+
+/* Rand Presets */
+.id-studio-presets-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 2px 0;
+}
+
+.id-studio-preset-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  box-sizing: border-box;
+  padding: 0;
+  outline: none;
+}
+
+.id-studio-preset-chip:hover {
+  transform: scale(1.15);
+  border-color: #ffffff;
+}
+
+.id-studio-preset-chip.active {
+  border-color: #feb414;
+  box-shadow: 0 0 0 2px rgba(254, 180, 20, 0.7);
+}
+
+/* 2D Spectru Culoare (SV Area) */
+.id-studio-sv-area {
+  width: 100%;
+  height: 110px;
+  border-radius: 8px;
+  position: relative;
+  cursor: crosshair;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.18);
+  touch-action: none;
+}
+
+.id-studio-sv-white {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, #ffffff, transparent);
+  pointer-events: none;
+}
+
+.id-studio-sv-black {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, #000000, transparent);
+  pointer-events: none;
+}
+
+.id-studio-sv-thumb {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.9), inset 0 0 1px rgba(0, 0, 0, 0.6);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* Slider Hue (Curcubeu) */
+.id-studio-hue-slider {
+  width: 100%;
+  height: 14px;
+  border-radius: 7px;
+  position: relative;
+  cursor: pointer;
+  background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.18);
+  touch-action: none;
+}
+
+.id-studio-hue-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* Bottom Row: Previzualizare + Hex */
+.id-studio-popover-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.id-studio-popover-preview-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+}
+
+.id-studio-hex-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 7px;
+  padding: 0 8px;
+  height: 26px;
+  box-sizing: border-box;
+}
+
+.id-studio-hex-hash {
+  color: rgba(255, 255, 255, 0.5);
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.id-studio-hex-field {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f5f1ee;
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+  width: 100%;
+  padding-left: 2px;
+  text-transform: uppercase;
+}
+
+
 
