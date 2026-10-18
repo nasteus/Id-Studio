@@ -16,14 +16,44 @@
           }
           document.documentElement.className = theme;
         } catch (e) {}
+
+        // Validare si curatare automata a preset-urilor ID Studio
+        try {
+          var validPresets = ["2:3", "2.5:3.2", "3:4", "3.5:4.5", "4:6", "5:5", "6:9"];
+          var currentPreset = localStorage.getItem('id_studio_active_preset');
+          if (!currentPreset || validPresets.indexOf(currentPreset) === -1) {
+            localStorage.setItem('id_studio_active_preset', '3.5:4.5');
+          }
+          var statesStr = localStorage.getItem('id_studio_photo_states');
+          if (statesStr) {
+            var states = JSON.parse(statesStr);
+            var changed = false;
+            for (var id in states) {
+              if (states[id] && states[id].preset && validPresets.indexOf(states[id].preset) === -1) {
+                states[id].preset = '3.5:4.5';
+                changed = true;
+              }
+            }
+            if (changed) {
+              localStorage.setItem('id_studio_photo_states', JSON.stringify(states));
+            }
+          }
+          // Eliminare chei reziduale vechi din Crop Studio
+          for (var i = localStorage.length - 1; i >= 0; i--) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('crop_studio_') === 0) {
+              localStorage.removeItem(k);
+            }
+          }
+        } catch(e) {}
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index-Bp0rKAwA.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-TgHUVkS-.css">
-    <link rel="stylesheet" href="./id-studio-preview.css">
+    <script type="module" crossorigin src="./assets/index-idstudio-v4.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-TgHUVkS-.css?v=5">
+    <link rel="stylesheet" href="./id-studio-preview.css?v=6">
   </head>
   <body class="theme-aperture">
     <div id="app"></div>
@@ -154,6 +184,6 @@
         window.addEventListener('load', scheduleArrange);
       })();
     </script>
-    <script src="./id-studio-preview.js"></script>
+    <script src="./id-studio-preview.js?v=6"></script>
   </body>
 </html>

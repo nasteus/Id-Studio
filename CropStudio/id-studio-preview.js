@@ -67,7 +67,7 @@
 
     // 2. Incercam citirea din starea persistata de Svelte in localStorage
     try {
-      var activePreset = localStorage.getItem('crop_studio_active_preset');
+      var activePreset = localStorage.getItem('id_studio_active_preset');
       if (activePreset) {
         var pMatch = activePreset.match(/([\d\.]+)\s*[:xX×]\s*([\d\.]+)/);
         if (pMatch) {
@@ -79,7 +79,7 @@
         }
       }
 
-      var photoStatesStr = localStorage.getItem('crop_studio_photo_states');
+      var photoStatesStr = localStorage.getItem('id_studio_photo_states');
       if (photoStatesStr) {
         var states = JSON.parse(photoStatesStr);
         for (var k in states) {
@@ -99,6 +99,11 @@
 
     // 3. Pastram dimensiunea valida anterioara (nu revenim niciodata involuntar la 3.5x4.5)
     return cachedSize;
+  }
+
+  function isPreset(w, h, targetW, targetH) {
+    return (Math.abs(w - targetW) < 0.05 && Math.abs(h - targetH) < 0.05) ||
+           (Math.abs(w - targetH) < 0.05 && Math.abs(h - targetW) < 0.05);
   }
 
   /**
@@ -211,21 +216,42 @@
         photoH_cm = Math.max(selW, selH);
       }
 
-      var is5x5 = (selW === 5 && selH === 5);
+      var pxPerCm = sheetH / 12.7;
+      var is5x5 = isPreset(selW, selH, 5, 5);
       sheetEl.classList.toggle('is-size-5x5', is5x5);
 
       var grid = sheetEl.querySelector('.id-studio-sheet-grid');
       var slotW, slotH, scale;
+
+      var gapPx;
+      var gapCm;
+      if (isPreset(selW, selH, 4, 6) || isPreset(selW, selH, 6, 9)) {
+        gapPx = 1;
+        gapCm = gapPx / (pxPerCm || 30);
+      } else if (
+        isPreset(selW, selH, 2, 3) ||
+        isPreset(selW, selH, 2.5, 3.2) ||
+        isPreset(selW, selH, 3, 4) ||
+        is5x5
+      ) {
+        gapCm = 1.0;
+        gapPx = Math.round(gapCm * pxPerCm);
+      } else if (isPreset(selW, selH, 3.5, 4.5)) {
+        gapCm = 0.6;
+        gapPx = Math.round(gapCm * pxPerCm);
+      } else {
+        gapCm = 0.5;
+        gapPx = Math.round(gapCm * pxPerCm);
+      }
 
       if (is5x5) {
         // Pentru formatul 5x5 cm:
         // Coala are 8.9 cm latime si 12.7 cm inaltime.
         // 2 miniaturi patrate de 5 x 5 cm, asezate pe o singura coloana verticala.
         // Spatiu exact de 1 cm intre ele:
-        var gapY = Math.round(sheetH * (1.0 / 12.7));
         if (grid) {
-          grid.style.setProperty('gap', gapY + 'px 0px', 'important');
-          grid.style.setProperty('row-gap', gapY + 'px', 'important');
+          grid.style.setProperty('gap', gapPx + 'px 0px', 'important');
+          grid.style.setProperty('row-gap', gapPx + 'px', 'important');
           grid.style.setProperty('column-gap', '0px', 'important');
         }
 
@@ -265,15 +291,15 @@
         }
       } else {
         if (grid) {
-          grid.style.setProperty('gap', '6px 6px', 'important');
-          grid.style.setProperty('row-gap', '6px', 'important');
-          grid.style.setProperty('column-gap', '6px', 'important');
+          grid.style.setProperty('gap', gapPx + 'px ' + gapPx + 'px', 'important');
+          grid.style.setProperty('row-gap', gapPx + 'px', 'important');
+          grid.style.setProperty('column-gap', gapPx + 'px', 'important');
         }
 
         // Raportarea exacta a pozei la coala de 8.9 x 12.7 cm
         var scaleFactor = 1.0;
-        var maxAllowedW = 8.9 - 0.4;
-        var maxAllowedH = 12.7 - 0.4;
+        var maxAllowedW = 8.9 - gapCm;
+        var maxAllowedH = 12.7 - gapCm;
         if ((2 * photoW_cm > maxAllowedW) || (2 * photoH_cm > maxAllowedH)) {
           scaleFactor = Math.min(maxAllowedW / (2 * photoW_cm), maxAllowedH / (2 * photoH_cm));
         }

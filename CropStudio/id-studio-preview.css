@@ -53,7 +53,7 @@
   display: grid !important;
   grid-template-columns: repeat(2, auto) !important;
   grid-template-rows: repeat(2, auto) !important;
-  gap: 6px 6px !important;
+  gap: 6px 6px;
   align-items: center !important;
   justify-content: center !important;
   box-sizing: border-box !important;
