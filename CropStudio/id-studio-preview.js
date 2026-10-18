@@ -222,14 +222,16 @@
 
       var pxPerCm = sheetH / 12.7;
       var is5x5 = isPreset(selW, selH, 5, 5);
+      var is6x9 = isPreset(selW, selH, 6, 9);
       sheetEl.classList.toggle('is-size-5x5', is5x5);
+      sheetEl.classList.toggle('is-size-6x9', is6x9);
 
       var grid = sheetEl.querySelector('.id-studio-sheet-grid');
       var slotW, slotH, scale;
 
       var gapPx;
       var gapCm;
-      if (isPreset(selW, selH, 4, 6) || isPreset(selW, selH, 6, 9)) {
+      if (isPreset(selW, selH, 4, 6) || is6x9) {
         gapPx = 1;
         gapCm = gapPx / (pxPerCm || 30);
       } else if (
@@ -248,7 +250,55 @@
         gapPx = Math.round(gapCm * pxPerCm);
       }
 
-      if (is5x5) {
+      if (is6x9) {
+        // Pentru formatul 6x9 cm:
+        // Pe pagina sunt exact 2 miniaturi cu 1px distanta intre ele.
+        // Miniaturile sunt rotite 90 grade la dreapta (+90° CW) si devin orizontale (9 x 6 cm).
+        if (grid) {
+          grid.style.setProperty('gap', '1px 0px', 'important');
+          grid.style.setProperty('row-gap', '1px', 'important');
+          grid.style.setProperty('column-gap', '0px', 'important');
+        }
+
+        // Miniatura orizontala are 9 cm latime (raportata la 8.9cm latimea colii)
+        // si 6 cm inaltime (raportata la 12.7cm inaltimea colii).
+        slotW = sheetW; // Ocupa latimea colii (8.9 cm)
+        slotH = Math.round(slotW * (6.0 / 9.0)); // Inaltimea conform proportiei 6x9 (9x6 orizontal)
+        scale = slotW / frameH; // Cadrul original este vertical (frameH corespunde latimii slotW rotite)
+
+        for (var i = 0; i < slots.length; i++) {
+          var slot = slots[i];
+          if (i < 2) {
+            slot.style.display = '';
+            slot.style.width = slotW + 'px';
+            slot.style.height = slotH + 'px';
+
+            var scaler = slotScalers[i];
+            if (scaler) {
+              scaler.style.width = frameW + 'px';
+              scaler.style.height = frameH + 'px';
+              scaler.style.top = '0';
+              scaler.style.left = '0';
+              scaler.style.transformOrigin = '0 0';
+              scaler.style.transform = 'translate(' + slotW + 'px, 0px) rotate(90deg) scale(' + scale + ')';
+            }
+
+            var img = slotImgs[i];
+            if (img) {
+              if (img.getAttribute('src') !== src) {
+                img.setAttribute('src', src);
+              }
+              img.style.width = imgW;
+              img.style.height = imgH;
+              img.style.transform = transform;
+              img.style.transformOrigin = mainImg.style.transformOrigin || 'center center';
+              img.style.filter = filter;
+            }
+          } else {
+            slot.style.display = 'none';
+          }
+        }
+      } else if (is5x5) {
         // Pentru formatul 5x5 cm:
         // Coala are 8.9 cm latime si 12.7 cm inaltime.
         // 2 miniaturi patrate de 5 x 5 cm, asezate pe o singura coloana verticala.
@@ -275,6 +325,9 @@
             if (scaler) {
               scaler.style.width = frameW + 'px';
               scaler.style.height = frameH + 'px';
+              scaler.style.top = '0';
+              scaler.style.left = '0';
+              scaler.style.transformOrigin = '0 0';
               scaler.style.transform = 'scale(' + scale + ')';
             }
 
@@ -323,6 +376,9 @@
           if (scaler) {
             scaler.style.width = frameW + 'px';
             scaler.style.height = frameH + 'px';
+            scaler.style.top = '0';
+            scaler.style.left = '0';
+            scaler.style.transformOrigin = '0 0';
             scaler.style.transform = 'scale(' + scale + ')';
           }
 

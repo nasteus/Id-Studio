@@ -81,15 +81,25 @@
   box-sizing: border-box !important;
 }
 
-/* Formatul 5x5 cm: 2 miniaturi aliniate pe 1 singura coloana cu spatiu de 1cm intre ele */
+/* Formatul 5x5 cm & 6x9 cm: 2 miniaturi aliniate pe 1 singura coloana verticala */
 .id-studio-sheet.is-size-5x5 .id-studio-sheet-grid {
   grid-template-columns: auto !important;
   grid-template-rows: repeat(2, auto) !important;
   column-gap: 0px !important;
 }
 
+.id-studio-sheet.is-size-6x9 .id-studio-sheet-grid {
+  grid-template-columns: auto !important;
+  grid-template-rows: repeat(2, auto) !important;
+  row-gap: 1px !important;
+  column-gap: 0px !important;
+  gap: 1px 0px !important;
+}
+
 .id-studio-sheet.is-size-5x5 .id-studio-photo-slot[data-slot="2"],
-.id-studio-sheet.is-size-5x5 .id-studio-photo-slot[data-slot="3"] {
+.id-studio-sheet.is-size-5x5 .id-studio-photo-slot[data-slot="3"],
+.id-studio-sheet.is-size-6x9 .id-studio-photo-slot[data-slot="2"],
+.id-studio-sheet.is-size-6x9 .id-studio-photo-slot[data-slot="3"] {
   display: none !important;
 }
 
