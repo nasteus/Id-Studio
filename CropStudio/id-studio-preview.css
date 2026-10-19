@@ -533,5 +533,123 @@ button[title*="Fit In"],
   text-transform: uppercase;
 }
 
+/* ==========================================================================
+   ID Studio - Modal Procesare Comanda & Randare Coala 300 DPI
+   ========================================================================== */
+
+.id-studio-order-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: rgba(18, 16, 14, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: idStudioFadeIn 0.25s ease-out;
+}
+
+@keyframes idStudioFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.id-studio-order-modal {
+  width: 100%;
+  max-width: 420px;
+  background: linear-gradient(180deg, #38302a 0%, #221d19 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 4px 16px rgba(0, 0, 0, 0.4);
+  padding: 32px 28px;
+  box-sizing: border-box;
+  text-align: center;
+  color: #f5f1ee;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  animation: idStudioScaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes idStudioScaleUp {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.id-studio-order-spinner {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  border: 4px solid rgba(254, 180, 20, 0.18);
+  border-top-color: #22c55e;
+  border-right-color: #feb414;
+  animation: idStudioSpin 0.85s linear infinite;
+}
+
+@keyframes idStudioSpin {
+  to { transform: rotate(360deg); }
+}
+
+.id-studio-order-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.id-studio-order-status {
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba(245, 241, 238, 0.75);
+  margin-bottom: 6px;
+  min-height: 20px;
+}
+
+.id-studio-order-detail {
+  font-size: 12px;
+  font-weight: 600;
+  color: #feb414;
+  margin-top: 10px;
+  padding: 6px 12px;
+  background: rgba(254, 180, 20, 0.1);
+  border: 1px solid rgba(254, 180, 20, 0.25);
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.id-studio-order-error {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 10px;
+  color: #fca5a5;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.id-studio-order-close-btn {
+  margin-top: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 9px 22px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.id-studio-order-close-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+
 
 

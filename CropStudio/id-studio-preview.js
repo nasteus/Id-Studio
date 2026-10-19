@@ -775,6 +775,367 @@
     resetHole.parentNode.insertBefore(pickerHole, resetHole);
   }
 
+  // ==========================================================================
+  // ID Studio - Randare Coala 300 DPI & Integrare Cos WooCommerce
+  // ==========================================================================
+
+  function getCurrentOrderMeta() {
+    var sizeInfo = getSelectedSizeCm();
+    var preset = sizeInfo.w + ':' + sizeInfo.h;
+    var sizeLabel = sizeInfo.w + ' \u00d7 ' + sizeInfo.h + ' cm';
+
+    var copies = 1;
+    var copiesPill = document.querySelector('.copies-preset-pill.selected, .silver-btn.copies-btn');
+    if (copiesPill) {
+      var cText = copiesPill.innerText || copiesPill.textContent || '';
+      var cMatch = cText.match(/(\d+)/);
+      if (cMatch) {
+        copies = parseInt(cMatch[1], 10);
+      }
+    }
+    if (isNaN(copies) || copies < 1) copies = 1;
+
+    var finish = 'Lucios';
+    var finishBtn = document.querySelector('.control-panel .silver-btn[title*="hartie"], .control-panel .silver-btn[title*="h\u00e2rtie"]');
+    if (finishBtn) {
+      var fText = (finishBtn.innerText || finishBtn.textContent || '').trim();
+      if (fText.toLowerCase().indexOf('mat') !== -1) {
+        finish = 'Mat';
+      } else {
+        finish = 'Lucios';
+      }
+    }
+
+    var originalName = 'foto.jpg';
+    var activeThumb = document.querySelector('.filmstrip-thumbnail.active img, .filmstrip-thumbnail img');
+    if (activeThumb && activeThumb.alt) {
+      originalName = activeThumb.alt;
+    } else {
+      var mainImg = document.querySelector('.fixed-crop-frame img.framed-photo-image');
+      if (mainImg && mainImg.alt) {
+        originalName = mainImg.alt;
+      }
+    }
+    var filename = 'Foto Tip ' + sizeLabel + ' - ' + originalName;
+
+    return {
+      preset: preset,
+      sizeLabel: sizeLabel,
+      copies: copies,
+      finish: finish,
+      filename: filename
+    };
+  }
+
+  function renderSheetAt300Dpi() {
+    return new Promise(function(resolve, reject) {
+      var cropFrame = document.querySelector('.fixed-crop-frame');
+      var mainImg = cropFrame ? cropFrame.querySelector('img.framed-photo-image') : null;
+      if (!cropFrame || !mainImg) {
+        return reject(new Error('Nu exist\u0103 nicio fotografie deschis\u0103 \u00een editor.'));
+      }
+
+      var sizeInfo = getSelectedSizeCm();
+      var selW = sizeInfo.w;
+      var selH = sizeInfo.h;
+      var is5x5 = isPreset(selW, selH, 5, 5);
+      var is6x9 = isPreset(selW, selH, 6, 9);
+
+      var dpi = 300;
+      var pxPerCm = dpi / 2.54;
+
+      var canvasW = 1051;
+      var canvasH = 1500;
+
+      var canvas = document.createElement('canvas');
+      canvas.width = canvasW;
+      canvas.height = canvasH;
+      var ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return reject(new Error('Nu s-a putut ini\u021bializa contextul Canvas 2D.'));
+      }
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // Fundalul colii
+      var sheetBg = localStorage.getItem('id_studio_sheet_bg') || '#808080';
+      ctx.fillStyle = sheetBg;
+      ctx.fillRect(0, 0, canvasW, canvasH);
+
+      var slotsCoords = [];
+
+      if (is6x9) {
+        var slotW = canvasW;
+        var slotH = Math.round(slotW * (6.0 / 9.0));
+        var gap = 2;
+        var totalH = (slotH * 2) + gap;
+        var startY = Math.round((canvasH - totalH) / 2);
+
+        slotsCoords.push({ x: 0, y: startY, w: slotW, h: slotH, rotate90: true });
+        slotsCoords.push({ x: 0, y: startY + slotH + gap, w: slotW, h: slotH, rotate90: true });
+      } else if (is5x5) {
+        var slotSize = Math.round(5.0 * pxPerCm);
+        var gap = Math.round(1.0 * pxPerCm);
+        var totalH = (slotSize * 2) + gap;
+        var startX = Math.round((canvasW - slotSize) / 2);
+        var startY = Math.round((canvasH - totalH) / 2);
+
+        slotsCoords.push({ x: startX, y: startY, w: slotSize, h: slotSize, rotate90: false });
+        slotsCoords.push({ x: startX, y: startY + slotSize + gap, w: slotSize, h: slotSize, rotate90: false });
+      } else {
+        var slotW_cm = Math.min(selW, selH);
+        var slotH_cm = Math.max(selW, selH);
+        if (cropFrame.offsetWidth > cropFrame.offsetHeight) {
+          slotW_cm = Math.max(selW, selH);
+          slotH_cm = Math.min(selW, selH);
+        }
+        var slotW = Math.round(slotW_cm * pxPerCm);
+        var slotH = Math.round(slotH_cm * pxPerCm);
+
+        var gapCm = 0.5;
+        var gapPx = 2;
+        if (isPreset(selW, selH, 4, 6)) {
+          gapPx = 2;
+        } else if (isPreset(selW, selH, 2, 3) || isPreset(selW, selH, 2.5, 3.2) || isPreset(selW, selH, 3, 4)) {
+          gapCm = 1.0;
+          gapPx = Math.round(gapCm * pxPerCm);
+        } else if (isPreset(selW, selH, 3.5, 4.5)) {
+          gapCm = 0.6;
+          gapPx = Math.round(gapCm * pxPerCm);
+        } else {
+          gapPx = Math.round(gapCm * pxPerCm);
+        }
+
+        var totalW = (slotW * 2) + gapPx;
+        var totalH = (slotH * 2) + gapPx;
+        var startX = Math.round((canvasW - totalW) / 2);
+        var startY = Math.round((canvasH - totalH) / 2);
+
+        slotsCoords.push({ x: startX, y: startY, w: slotW, h: slotH, rotate90: false });
+        slotsCoords.push({ x: startX + slotW + gapPx, y: startY, w: slotW, h: slotH, rotate90: false });
+        slotsCoords.push({ x: startX, y: startY + slotH + gapPx, w: slotW, h: slotH, rotate90: false });
+        slotsCoords.push({ x: startX + slotW + gapPx, y: startY + slotH + gapPx, w: slotW, h: slotH, rotate90: false });
+      }
+
+      var frameW = cropFrame.offsetWidth;
+      var frameH = cropFrame.offsetHeight;
+
+      var imageObj = new Image();
+      imageObj.crossOrigin = 'anonymous';
+      imageObj.onload = function() {
+        var compStyle = window.getComputedStyle(mainImg);
+        var transformStr = compStyle.transform || '';
+        var filterStr = compStyle.filter || '';
+
+        var matrix = [1, 0, 0, 1, 0, 0];
+        var matrixMatch = transformStr.match(/matrix\(([^)]+)\)/);
+        if (matrixMatch) {
+          matrix = matrixMatch[1].split(',').map(function(v) { return parseFloat(v.trim()); });
+        }
+
+        var imgW = parseFloat(mainImg.style.width) || mainImg.offsetWidth || imageObj.naturalWidth;
+        var imgH = parseFloat(mainImg.style.height) || mainImg.offsetHeight || imageObj.naturalHeight;
+
+        for (var i = 0; i < slotsCoords.length; i++) {
+          var slot = slotsCoords[i];
+
+          ctx.save();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(slot.x, slot.y, slot.w, slot.h);
+
+          ctx.beginPath();
+          ctx.rect(slot.x, slot.y, slot.w, slot.h);
+          ctx.clip();
+
+          ctx.translate(slot.x, slot.y);
+
+          if (slot.rotate90) {
+            var scale = slot.w / frameH;
+            ctx.translate(slot.w, 0);
+            ctx.rotate(Math.PI / 2);
+            ctx.scale(scale, scale);
+          } else {
+            var scale = slot.w / frameW;
+            ctx.scale(scale, scale);
+          }
+
+          ctx.translate(frameW / 2, frameH / 2);
+          ctx.transform(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5]);
+
+          if (filterStr && filterStr !== 'none') {
+            ctx.filter = filterStr;
+          }
+
+          ctx.drawImage(imageObj, 0, 0, imgW, imgH);
+
+          ctx.restore();
+
+          // Muchie neagra continua slot
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(slot.x, slot.y, slot.w, slot.h);
+        }
+
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.98);
+        resolve(dataUrl);
+      };
+
+      imageObj.onerror = function() {
+        reject(new Error('Nu s-a putut \u00eenc\u0103rca imaginea pentru randare.'));
+      };
+
+      imageObj.src = mainImg.src;
+    });
+  }
+
+  var orderModalEl = null;
+
+  function showOrderModal(initialStatus, detailText) {
+    if (orderModalEl && orderModalEl.parentNode) {
+      orderModalEl.parentNode.removeChild(orderModalEl);
+    }
+
+    orderModalEl = document.createElement('div');
+    orderModalEl.className = 'id-studio-order-backdrop';
+    orderModalEl.innerHTML = [
+      '<div class="id-studio-order-modal">',
+      '  <div class="id-studio-order-spinner"></div>',
+      '  <div class="id-studio-order-title">Procesare Comand\u0103 Foto Tip</div>',
+      '  <div class="id-studio-order-status">' + (initialStatus || 'Se preg\u0103te\u0219te coala foto...') + '</div>',
+      detailText ? ('  <div class="id-studio-order-detail">' + detailText + '</div>') : '',
+      '</div>'
+    ].join('');
+
+    document.body.appendChild(orderModalEl);
+  }
+
+  function updateOrderStatus(statusText, detailText) {
+    if (!orderModalEl) return;
+    var statusEl = orderModalEl.querySelector('.id-studio-order-status');
+    if (statusEl) statusEl.textContent = statusText;
+    if (detailText) {
+      var detailEl = orderModalEl.querySelector('.id-studio-order-detail');
+      if (detailEl) {
+        detailEl.textContent = detailText;
+      }
+    }
+  }
+
+  function showOrderError(errorMsg) {
+    if (!orderModalEl) return;
+    var spinner = orderModalEl.querySelector('.id-studio-order-spinner');
+    if (spinner) spinner.style.display = 'none';
+
+    var title = orderModalEl.querySelector('.id-studio-order-title');
+    if (title) title.textContent = 'Eroare la ad\u0103ugare \u00een co\u0219';
+
+    var statusEl = orderModalEl.querySelector('.id-studio-order-status');
+    if (statusEl) statusEl.textContent = 'A ap\u0103rut o problem\u0103:';
+
+    var modal = orderModalEl.querySelector('.id-studio-order-modal');
+    if (modal) {
+      var errBox = document.createElement('div');
+      errBox.className = 'id-studio-order-error';
+      errBox.textContent = errorMsg || 'Eroare necunoscut\u0103.';
+      modal.appendChild(errBox);
+
+      var closeBtn = document.createElement('button');
+      closeBtn.className = 'id-studio-order-close-btn';
+      closeBtn.textContent = '\u00cenchide';
+      closeBtn.addEventListener('click', closeOrderModal);
+      modal.appendChild(closeBtn);
+    }
+  }
+
+  function closeOrderModal() {
+    if (orderModalEl && orderModalEl.parentNode) {
+      orderModalEl.parentNode.removeChild(orderModalEl);
+      orderModalEl = null;
+    }
+  }
+
+  var isOrdering = false;
+
+  async function handleIdStudioOrder() {
+    if (isOrdering) return;
+
+    var cropFrame = document.querySelector('.fixed-crop-frame');
+    var mainImg = cropFrame ? cropFrame.querySelector('img.framed-photo-image') : null;
+    if (!cropFrame || !mainImg) {
+      alert('V\u0103 rug\u0103m s\u0103 \u00eenc\u0103rca\u021bi o fotografie \u00eenainte de a comanda.');
+      return;
+    }
+
+    var meta = getCurrentOrderMeta();
+    isOrdering = true;
+
+    showOrderModal(
+      'Se genereaz\u0103 coala foto de print (300 DPI)...',
+      meta.sizeLabel + ' \u2022 ' + meta.copies + ' buc. \u2022 ' + meta.finish
+    );
+
+    try {
+      var dataUrl = await renderSheetAt300Dpi();
+
+      updateOrderStatus('Se adaug\u0103 \u00een co\u0219ul de cump\u0103r\u0103turi...', 'Transfer date c\u0103tre server...');
+
+      var resp = await fetch('/wp-json/id-studio/v1/add-to-cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          preset: meta.preset,
+          copies: meta.copies,
+          finish: meta.finish,
+          image_data: dataUrl,
+          filename: meta.filename
+        })
+      });
+
+      var data = await resp.json();
+
+      if (!resp.ok || !data || !data.success) {
+        throw new Error((data && data.message) ? data.message : ('Eroare server (' + resp.status + ')'));
+      }
+
+      updateOrderStatus('Ad\u0103ugat cu succes! Redirec\u021bionare c\u0103tre co\u0219...', 'V\u0103 redirec\u021bion\u0103m \u00een co\u0219...');
+
+      setTimeout(function() {
+        window.location.href = data.redirect_url || '/cart/';
+      }, 500);
+
+    } catch (err) {
+      console.error('[ID Studio] Eroare la comanda:', err);
+      showOrderError(err.message || 'Nu s-a putut finaliza comanda.');
+      isOrdering = false;
+    }
+  }
+
+  // Interceptam apasarea butonului Moneda din bara inferioara (filmstrip)
+  document.addEventListener('click', function(e) {
+    var target = e.target;
+    if (!target) return;
+
+    var coinBtn = target.closest(
+      '.filmstrip-action-btn.next-btn-right, ' +
+      'button.next-btn-right, ' +
+      'button.green-btn, ' +
+      '.order-btn-icon'
+    );
+
+    if (coinBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      handleIdStudioOrder();
+    }
+  }, true);
+
   // Pornire la incarcare
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
@@ -784,3 +1145,4 @@
     requestAnimationFrame(sync);
   }
 })();
+
