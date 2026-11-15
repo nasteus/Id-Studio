@@ -110,10 +110,75 @@
            (Math.abs(w - targetH) < 0.05 && Math.abs(h - targetW) < 0.05);
   }
 
+  var isPortrait = false;
+  var layoutRafId = null;
+  var photoRafId = null;
+  var mainImgObserver = null;
+  var cropFrameObserver = null;
+  var observedMainImg = null;
+  var observedCropFrame = null;
+
+  var lastLayout = {
+    frameW: 0,
+    frameH: 0,
+    selectedW: 0,
+    selectedH: 0,
+    isPortrait: false
+  };
+
   /**
-   * Bucla de sincronizare continua (60 FPS)
+   * Sincronizare continut foto pe miniaturi (transform, filter, src, origin)
+   * NU citeste dimensiuni din DOM (fara offsetWidth / offsetHeight / reflow) => ZERO licarituri!
    */
-  function sync() {
+  function syncPhotoContent() {
+    var cropFrame = document.querySelector('.fixed-crop-frame');
+    if (!cropFrame) return;
+    var mainImg = cropFrame.querySelector('img.framed-photo-image');
+    if (!mainImg || slotImgs.length === 0) return;
+
+    var src = mainImg.getAttribute('src') || mainImg.src || '';
+    var transform = mainImg.style.transform || '';
+    var filter = mainImg.style.filter || '';
+    var origin = mainImg.style.transformOrigin || 'center center';
+    var imgW = mainImg.style.width || '';
+    var imgH = mainImg.style.height || '';
+
+    for (var i = 0; i < slotImgs.length; i++) {
+      var img = slotImgs[i];
+      if (img) {
+        if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+        if (img.style.transform !== transform) img.style.transform = transform;
+        if (img.style.filter !== filter) img.style.filter = filter;
+        if (img.style.transformOrigin !== origin) img.style.transformOrigin = origin;
+        if (img.style.width !== imgW) img.style.width = imgW;
+        if (img.style.height !== imgH) img.style.height = imgH;
+      }
+    }
+  }
+
+  function requestPhotoSync() {
+    if (photoRafId) return;
+    photoRafId = requestAnimationFrame(function() {
+      photoRafId = null;
+      syncPhotoContent();
+    });
+  }
+
+  /**
+   * Stabileste pozitia si dimensiunile elementelor pe ecran o singura data la inceput
+   * sau la redimensionare / schimbare preset marime.
+   */
+  function syncLayout(force) {
+    var sizeModal = document.querySelector('.size-modal-overlay');
+    if (sizeModal) {
+      if (!document.body.classList.contains('has-size-modal')) {
+        document.body.classList.add('has-size-modal');
+      }
+      return;
+    } else if (document.body.classList.contains('has-size-modal')) {
+      document.body.classList.remove('has-size-modal');
+    }
+
     var cropFrame = document.querySelector('.fixed-crop-frame');
     var viewport = document.querySelector('.canvas-viewport');
 
@@ -123,7 +188,6 @@
         sheetEl.parentNode.removeChild(sheetEl);
         sheetEl = null;
       }
-      requestAnimationFrame(sync);
       return;
     }
 
@@ -136,89 +200,69 @@
     }
 
     var mainImg = cropFrame.querySelector('img.framed-photo-image');
-    if (!mainImg) {
-      requestAnimationFrame(sync);
+    if (!mainImg) return;
+
+    // Conectam observeri pe elemente daca s-au schimbat
+    attachElementObservers(cropFrame, mainImg);
+
+    // Dimensiunile cadrului sunt calculate optim si stabil de motorul aplicatiei
+    if (cropFrame.style.maxHeight) {
+      cropFrame.style.maxHeight = '';
+    }
+
+    var frameW = Math.round(cropFrame.offsetWidth);
+    var frameH = Math.round(cropFrame.offsetHeight);
+    if (frameW <= 0 || frameH <= 0) {
+      if (!layoutRafId) {
+        layoutRafId = requestAnimationFrame(function() {
+          layoutRafId = null;
+          syncLayout(true);
+        });
+      }
       return;
     }
 
     var viewportW = viewport.clientWidth;
     var viewportH = viewport.clientHeight;
-    var isPortrait = (viewportH > viewportW) || window.matchMedia('(orientation: portrait)').matches;
-
-    // In modul vertical / portabil: impartim inaltimea disponibila in jumatate
-    if (isPortrait) {
-      var maxHalfH = Math.floor((viewportH - 45) / 2);
-      if (maxHalfH > 100) {
-        cropFrame.style.maxHeight = maxHalfH + 'px';
-      }
-    } else {
-      if (cropFrame.style.maxHeight) {
-        cropFrame.style.maxHeight = '';
-      }
-    }
-
-    var frameW = cropFrame.offsetWidth;
-    var frameH = cropFrame.offsetHeight;
-    if (frameW <= 0 || frameH <= 0) {
-      requestAnimationFrame(sync);
-      return;
-    }
-
-    var src = mainImg.getAttribute('src') || mainImg.src || '';
-    var transform = mainImg.style.transform || '';
-    var filter = mainImg.style.filter || '';
-    var imgW = mainImg.style.width || '';
-    var imgH = mainImg.style.height || '';
+    var curIsPortrait = (viewportH > viewportW) || window.matchMedia('(orientation: portrait)').matches;
 
     var sizeInfo = getSelectedSizeCm();
     var selW = sizeInfo.w;
     var selH = sizeInfo.h;
 
-    var changed = (
-      src !== lastState.src ||
-      transform !== lastState.transform ||
-      filter !== lastState.filter ||
-      frameW !== lastState.frameW ||
-      frameH !== lastState.frameH ||
-      imgW !== lastState.imgW ||
-      imgH !== lastState.imgH ||
-      isPortrait !== lastState.isPortrait ||
-      selW !== lastState.selectedW ||
-      selH !== lastState.selectedH
+    var layoutChanged = (
+      force ||
+      Math.abs(frameW - lastLayout.frameW) > 1 ||
+      Math.abs(frameH - lastLayout.frameH) > 1 ||
+      curIsPortrait !== lastLayout.isPortrait ||
+      selW !== lastLayout.selectedW ||
+      selH !== lastLayout.selectedH
     );
 
-    if (changed) {
-      lastState.src = src;
-      lastState.transform = transform;
-      lastState.filter = filter;
-      lastState.frameW = frameW;
-      lastState.frameH = frameH;
-      lastState.imgW = imgW;
-      lastState.imgH = imgH;
-      lastState.isPortrait = isPortrait;
-      lastState.selectedW = selW;
-      lastState.selectedH = selH;
+    if (layoutChanged) {
+      lastLayout.frameW = frameW;
+      lastLayout.frameH = frameH;
+      lastLayout.isPortrait = curIsPortrait;
+      lastLayout.selectedW = selW;
+      lastLayout.selectedH = selH;
 
       // Coala are EXACT aceeasi inaltime ca chenarul de editare
       var sheetH = frameH;
       // Raportul fizic al colii este 8.9 / 12.7 ~= 0.7007874
       var sheetW = Math.round(sheetH * (8.9 / 12.7));
 
-      sheetEl.style.height = sheetH + 'px';
-      sheetEl.style.width = sheetW + 'px';
-
-      // Determinarea dimensiunilor fizice reale ale pozei in cm (in functie de orientarea cadrului)
-      var photoW_cm = selW;
-      var photoH_cm = selH;
-      if (frameW > frameH) {
-        // Cadrul este orizontal (landscape)
-        photoW_cm = Math.max(selW, selH);
-        photoH_cm = Math.min(selW, selH);
-      } else {
-        // Cadrul este vertical (portrait)
-        photoW_cm = Math.min(selW, selH);
-        photoH_cm = Math.max(selW, selH);
+      var currentSheetH = parseInt(sheetEl.style.height, 10);
+      var currentSheetW = parseInt(sheetEl.style.width, 10);
+      if (currentSheetH !== sheetH) {
+        sheetEl.style.height = sheetH + 'px';
       }
+      if (currentSheetW !== sheetW) {
+        sheetEl.style.width = sheetW + 'px';
+      }
+
+      // In ID Studio toate formatele tip act sunt strict verticale (portrait)
+      var photoW_cm = Math.min(selW, selH);
+      var photoH_cm = Math.max(selW, selH);
 
       var pxPerCm = sheetH / 12.7;
       var is5x5 = isPreset(selW, selH, 5, 5);
@@ -251,20 +295,15 @@
       }
 
       if (is6x9) {
-        // Pentru formatul 6x9 cm:
-        // Pe pagina sunt exact 2 miniaturi cu 1px distanta intre ele.
-        // Miniaturile sunt rotite 90 grade la dreapta (+90° CW) si devin orizontale (9 x 6 cm).
         if (grid) {
           grid.style.setProperty('gap', '1px 0px', 'important');
           grid.style.setProperty('row-gap', '1px', 'important');
           grid.style.setProperty('column-gap', '0px', 'important');
         }
 
-        // Miniatura orizontala are 9 cm latime (raportata la 8.9cm latimea colii)
-        // si 6 cm inaltime (raportata la 12.7cm inaltimea colii).
-        slotW = sheetW; // Ocupa latimea colii (8.9 cm)
-        slotH = Math.round(slotW * (6.0 / 9.0)); // Inaltimea conform proportiei 6x9 (9x6 orizontal)
-        scale = slotW / frameH; // Cadrul original este vertical (frameH corespunde latimii slotW rotite)
+        slotW = sheetW;
+        slotH = Math.round(slotW * (6.0 / 9.0));
+        scale = slotW / frameH;
 
         for (var i = 0; i < slots.length; i++) {
           var slot = slots[i];
@@ -282,36 +321,19 @@
               scaler.style.transformOrigin = '0 0';
               scaler.style.transform = 'translate(' + slotW + 'px, 0px) rotate(90deg) scale(' + scale + ')';
             }
-
-            var img = slotImgs[i];
-            if (img) {
-              if (img.getAttribute('src') !== src) {
-                img.setAttribute('src', src);
-              }
-              img.style.width = imgW;
-              img.style.height = imgH;
-              img.style.transform = transform;
-              img.style.transformOrigin = mainImg.style.transformOrigin || 'center center';
-              img.style.filter = filter;
-            }
           } else {
             slot.style.display = 'none';
           }
         }
       } else if (is5x5) {
-        // Pentru formatul 5x5 cm:
-        // Coala are 8.9 cm latime si 12.7 cm inaltime.
-        // 2 miniaturi patrate de 5 x 5 cm, asezate pe o singura coloana verticala.
-        // Spatiu exact de 1 cm intre ele:
         if (grid) {
           grid.style.setProperty('gap', gapPx + 'px 0px', 'important');
           grid.style.setProperty('row-gap', gapPx + 'px', 'important');
           grid.style.setProperty('column-gap', '0px', 'important');
         }
 
-        // Marimea miniaturii raportata la coala fizica (5cm raportat la 12.7cm inaltime)
         slotH = Math.round(sheetH * (5.0 / 12.7));
-        slotW = slotH; // Este patrat perfect 5x5 cm
+        slotW = slotH;
         scale = slotW / frameW;
 
         for (var i = 0; i < slots.length; i++) {
@@ -330,18 +352,6 @@
               scaler.style.transformOrigin = '0 0';
               scaler.style.transform = 'scale(' + scale + ')';
             }
-
-            var img = slotImgs[i];
-            if (img) {
-              if (img.getAttribute('src') !== src) {
-                img.setAttribute('src', src);
-              }
-              img.style.width = imgW;
-              img.style.height = imgH;
-              img.style.transform = transform;
-              img.style.transformOrigin = mainImg.style.transformOrigin || 'center center';
-              img.style.filter = filter;
-            }
           } else {
             slot.style.display = 'none';
           }
@@ -353,7 +363,6 @@
           grid.style.setProperty('column-gap', gapPx + 'px', 'important');
         }
 
-        // Raportarea exacta a pozei la coala de 8.9 x 12.7 cm
         var scaleFactor = 1.0;
         var maxAllowedW = 8.9 - gapCm;
         var maxAllowedH = 12.7 - gapCm;
@@ -361,7 +370,6 @@
           scaleFactor = Math.min(maxAllowedW / (2 * photoW_cm), maxAllowedH / (2 * photoH_cm));
         }
 
-        // Calculam dimensiunea in pixeli a miniaturii raportata la coala
         slotW = Math.round(sheetW * ((photoW_cm * scaleFactor) / 8.9));
         slotH = Math.round(sheetH * ((photoH_cm * scaleFactor) / 12.7));
         scale = slotW / frameW;
@@ -381,25 +389,82 @@
             scaler.style.transformOrigin = '0 0';
             scaler.style.transform = 'scale(' + scale + ')';
           }
-
-          var img = slotImgs[i];
-          if (img) {
-            if (img.getAttribute('src') !== src) {
-              img.setAttribute('src', src);
-            }
-            img.style.width = imgW;
-            img.style.height = imgH;
-            img.style.transform = transform;
-            img.style.transformOrigin = mainImg.style.transformOrigin || 'center center';
-            img.style.filter = filter;
-          }
         }
       }
     }
 
+    // Sincronizam continutul foto pe miniaturi
+    syncPhotoContent();
+
+    // Asiguram color pickerul in topbar
     ensureColorPickerInTopbar();
-    requestAnimationFrame(sync);
   }
+
+  function sync() {
+    syncLayout(true);
+  }
+
+  function attachElementObservers(cropFrame, mainImg) {
+    if (observedMainImg !== mainImg && mainImg) {
+      if (mainImgObserver) mainImgObserver.disconnect();
+      observedMainImg = mainImg;
+      mainImgObserver = new MutationObserver(function() {
+        requestPhotoSync();
+      });
+      mainImgObserver.observe(mainImg, { attributes: true, attributeFilter: ['style', 'src'] });
+    }
+
+    if (observedCropFrame !== cropFrame && cropFrame) {
+      if (cropFrameObserver) cropFrameObserver.disconnect();
+      observedCropFrame = cropFrame;
+      cropFrameObserver = new MutationObserver(function(mutations) {
+        for (var i = 0; i < mutations.length; i++) {
+          if (mutations[i].attributeName === 'style') {
+            syncLayout(false);
+            break;
+          }
+        }
+      });
+      cropFrameObserver.observe(cropFrame, { attributes: true, attributeFilter: ['style'] });
+    }
+  }
+
+  // Interactiuni utilizator: cand trage cu degetul sau mouse-ul, zoom sau click
+  document.addEventListener('pointermove', requestPhotoSync, { passive: true });
+  document.addEventListener('touchmove', requestPhotoSync, { passive: true });
+  document.addEventListener('mousemove', requestPhotoSync, { passive: true });
+  document.addEventListener('wheel', requestPhotoSync, { passive: true });
+  document.addEventListener('input', requestPhotoSync, { passive: true });
+
+  document.addEventListener('click', function(e) {
+    requestPhotoSync();
+    setTimeout(requestPhotoSync, 50);
+    setTimeout(function() { syncLayout(false); }, 100);
+  }, true);
+
+  window.addEventListener('resize', function() {
+    syncLayout(true);
+  });
+  window.addEventListener('orientationchange', function() {
+    setTimeout(function() { syncLayout(true); }, 150);
+  });
+
+  // Supraveghem schimbarile majore din DOM (deschidere modal, incarcare imagine)
+  var domObserver = new MutationObserver(function(mutations) {
+    var shouldCheck = false;
+    for (var i = 0; i < mutations.length; i++) {
+      var m = mutations[i];
+      if (m.addedNodes.length > 0 || m.removedNodes.length > 0) {
+        shouldCheck = true;
+        break;
+      }
+    }
+    if (shouldCheck) {
+      syncLayout(false);
+    }
+  });
+  var appMount = document.getElementById('app') || document.body;
+  domObserver.observe(appMount, { childList: true, subtree: true });
 
   /* ========================================================
      Color Picker & Sheet Background Manager (Aperture Theme)
@@ -886,10 +951,6 @@
       } else {
         var slotW_cm = Math.min(selW, selH);
         var slotH_cm = Math.max(selW, selH);
-        if (cropFrame.offsetWidth > cropFrame.offsetHeight) {
-          slotW_cm = Math.max(selW, selH);
-          slotH_cm = Math.min(selW, selH);
-        }
         var slotW = Math.round(slotW_cm * pxPerCm);
         var slotH = Math.round(slotH_cm * pxPerCm);
 
@@ -1136,13 +1197,13 @@
     }
   }, true);
 
-  // Pornire la incarcare
+  // Initializare la incarcare
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
-      requestAnimationFrame(sync);
+      syncLayout(true);
     });
   } else {
-    requestAnimationFrame(sync);
+    syncLayout(true);
   }
 })();
 

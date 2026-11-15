@@ -54,9 +54,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index-idstudio-v7.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-TgHUVkS-.css?v=16">
-    <link rel="stylesheet" href="./id-studio-preview.css?v=16">
+    <script type="module" crossorigin src="./assets/index-idstudio-v9.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-TgHUVkS-.css?v=21">
+    <link rel="stylesheet" href="./id-studio-preview.css?v=21">
   </head>
   <body class="theme-aperture">
     <div id="app"></div>
@@ -81,6 +81,9 @@
         }
 
         function arrangeBottomBar() {
+          // Prevenim orice flicker / rearanjare cat timp este deschis modalul de marime la incarcare
+          if (document.querySelector('.size-modal-overlay')) return;
+
           var fillBtn = document.querySelector('button[title*="Fill In"], button[title*="Fit In"]');
           if (fillBtn) {
             var fParent = fillBtn.closest('.hole-container') || fillBtn;
@@ -187,24 +190,52 @@
             // Mod normal: Decupare & Orizont
             var isSimple = !!document.querySelector('.crop-studio-root.mode-simple');
 
-            // Toggle vizibilitate Flip H si Rotire Dreapta in mod simplu vs avansat fara a le deconecta din DOM
-            if (flipHBtn) {
-              flipHBtn.style.display = isSimple ? 'none' : '';
-            }
-            if (rotateRightBtn) {
-              rotateRightBtn.style.display = isSimple ? 'none' : '';
-            }
+            if (isSimple) {
+              // In Mod Simplu: Flip H si Rotire sunt ascunse, dropdown-urile Marime si Copii sunt plasate in bara de jos
+              if (flipHBtn) flipHBtn.style.display = 'none';
+              if (rotateRightBtn) rotateRightBtn.style.display = 'none';
 
-            // Sliderul, unghiul si resetarea raman permanente in bara de jos
-            targetOrder = [
-              sizeDropdown,
-              copiesDropdown,
-              flipHBtn,
-              rotateRightBtn,
-              slider,
-              horizonAngleBtn,
-              resetBtn
-            ].filter(Boolean);
+              targetOrder = [
+                sizeDropdown,
+                copiesDropdown,
+                slider,
+                horizonAngleBtn,
+                resetBtn
+              ].filter(Boolean);
+            } else {
+              // In Mod Avansat: Flip H si Rotire sunt vizibile
+              if (flipHBtn) flipHBtn.style.display = '';
+              if (rotateRightBtn) rotateRightBtn.style.display = '';
+
+              // In Mod Avansat: Marime si Copii raman sau revin in bara de sus (.editbar-control-panel)
+              var topBar = document.querySelector('.editbar-control-panel');
+              if (topBar) {
+                var paperPill = topBar.querySelector('.paper-finish-pill');
+                if (copiesDropdown && copiesDropdown.parentNode !== topBar) {
+                  if (paperPill) {
+                    topBar.insertBefore(copiesDropdown, paperPill);
+                  } else {
+                    topBar.prepend(copiesDropdown);
+                  }
+                }
+                if (sizeDropdown && sizeDropdown.parentNode !== topBar) {
+                  if (paperPill && paperPill.nextSibling) {
+                    topBar.insertBefore(sizeDropdown, paperPill.nextSibling);
+                  } else {
+                    topBar.appendChild(sizeDropdown);
+                  }
+                }
+              }
+
+              // In bara de jos in modul avansat raman butoanele de transformare si reglaj orizont
+              targetOrder = [
+                flipHBtn,
+                rotateRightBtn,
+                slider,
+                horizonAngleBtn,
+                resetBtn
+              ].filter(Boolean);
+            }
           }
 
           if (targetOrder.length < 2) return;
@@ -224,7 +255,10 @@
             }
           } finally {
             isArranging = false;
-            if (observer) observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+            if (observer) {
+              var observeTarget = document.getElementById('app') || document.body;
+              observer.observe(observeTarget, { subtree: true, attributes: true, attributeFilter: ['class'] });
+            }
           }
         }
 
@@ -237,19 +271,36 @@
         }
 
         document.addEventListener('click', function(e) {
-          if (e.target && e.target.closest('.mode-toggle-btn')) {
+          if (e.target && (
+            e.target.closest('.mode-toggle-btn') ||
+            e.target.closest('.size-modal-close-btn') ||
+            e.target.closest('.size-preset-card') ||
+            e.target.closest('.size-modal-overlay')
+          )) {
             setTimeout(scheduleArrange, 10);
-            setTimeout(scheduleArrange, 50);
-            setTimeout(scheduleArrange, 150);
+            setTimeout(scheduleArrange, 60);
+            setTimeout(scheduleArrange, 200);
           }
         });
 
-        var observer = new MutationObserver(scheduleArrange);
-        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        var observer = new MutationObserver(function(mutations) {
+          for (var i = 0; i < mutations.length; i++) {
+            var m = mutations[i];
+            if (m.target && m.target.classList && (
+              m.target.classList.contains('crop-studio-root') ||
+              m.target.classList.contains('horizon-control-panel')
+            )) {
+              scheduleArrange();
+              break;
+            }
+          }
+        });
+        var appRoot = document.getElementById('app') || document.body;
+        observer.observe(appRoot, { subtree: true, attributes: true, attributeFilter: ['class'] });
         window.addEventListener('DOMContentLoaded', scheduleArrange);
         window.addEventListener('load', scheduleArrange);
       })();
     </script>
-    <script src="./id-studio-preview.js?v=16"></script>
+    <script src="./id-studio-preview.js?v=21"></script>
   </body>
 </html>
