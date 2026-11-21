@@ -37,11 +37,33 @@
   padding: 60px 24px 115px !important;
 }
 
-/* Stabilitate totala layout: prevenim orice concurenta sau strivire flexbox */
+/* Stabilitate totala layout si eliminare umbra 9999px (optimizare GPU pentru ecrane de top ca S25 Ultra) */
 .crop-studio-root .fixed-crop-frame,
 .fixed-crop-frame {
   flex-shrink: 0 !important;
   flex-grow: 0 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  isolation: isolate !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  -webkit-transform-style: flat !important;
+  transform-style: flat !important;
+}
+
+.crop-studio-root .fixed-crop-frame:active,
+.fixed-crop-frame:active {
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Izolare straturi GPU si aplatizare 2D pe miniaturi pentru a elimina orice flicker la 120Hz */
+.id-studio-photo-slot,
+.id-studio-slot-scaler,
+.id-studio-slot-scaler img,
+.fixed-crop-frame img.framed-photo-image {
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  -webkit-transform-style: flat !important;
+  transform-style: flat !important;
 }
 
 /* Layout vertical (Dispozitive portabile / Portrait) - Impartire exacta 50/50 de la jumatatea ecranului */
@@ -84,12 +106,17 @@
   }
 }
 
-/* Coala foto pura de 8.9 x 12.7 cm */
+/* Coala foto pura de 8.9 x 12.7 cm (optimizat GPU pentru ecrane de top) */
 .id-studio-sheet {
   position: relative !important;
-  z-index: 25 !important; /* Deasupra umbrei 9999px a cadrului de editare */
+  z-index: 25 !important;
   flex-shrink: 0 !important;
   flex-grow: 0 !important;
+  isolation: isolate !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  -webkit-transform-style: flat !important;
+  transform-style: flat !important;
   background: var(--id-studio-sheet-bg, #808080) !important;
   border-radius: 2px !important;
   box-sizing: border-box !important;

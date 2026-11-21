@@ -205,10 +205,7 @@
     // Conectam observeri pe elemente daca s-au schimbat
     attachElementObservers(cropFrame, mainImg);
 
-    // Dimensiunile cadrului sunt calculate optim si stabil de motorul aplicatiei
-    if (cropFrame.style.maxHeight) {
-      cropFrame.style.maxHeight = '';
-    }
+
 
     var frameW = Math.round(cropFrame.offsetWidth);
     var frameH = Math.round(cropFrame.offsetHeight);
@@ -437,9 +434,12 @@
   document.addEventListener('input', requestPhotoSync, { passive: true });
 
   document.addEventListener('click', function(e) {
-    requestPhotoSync();
-    setTimeout(requestPhotoSync, 50);
-    setTimeout(function() { syncLayout(false); }, 100);
+    var target = e.target;
+    if (target && target.closest && target.closest('.size-preset-card, .size-dropdown-item, .mode-toggle-btn, .silver-btn, .copies-preset-pill')) {
+      setTimeout(function() { syncLayout(true); }, 50);
+    } else {
+      requestPhotoSync();
+    }
   }, true);
 
   window.addEventListener('resize', function() {
@@ -449,14 +449,33 @@
     setTimeout(function() { syncLayout(true); }, 150);
   });
 
-  // Supraveghem schimbarile majore din DOM (deschidere modal, incarcare imagine)
+  // Supraveghem strict aparitia/disparitia cadrului sau a modalului de marime (fara treziri inutile de GPU)
   var domObserver = new MutationObserver(function(mutations) {
     var shouldCheck = false;
     for (var i = 0; i < mutations.length; i++) {
       var m = mutations[i];
       if (m.addedNodes.length > 0 || m.removedNodes.length > 0) {
-        shouldCheck = true;
-        break;
+        for (var j = 0; j < m.addedNodes.length; j++) {
+          var node = m.addedNodes[j];
+          if (node.nodeType === 1 && (
+            (node.classList && (node.classList.contains('fixed-crop-frame') || node.classList.contains('size-modal-overlay'))) ||
+            (node.querySelector && (node.querySelector('.fixed-crop-frame') || node.querySelector('.size-modal-overlay')))
+          )) {
+            shouldCheck = true;
+            break;
+          }
+        }
+        if (shouldCheck) break;
+        for (var k = 0; k < m.removedNodes.length; k++) {
+          var rNode = m.removedNodes[k];
+          if (rNode.nodeType === 1 && (
+            (rNode.classList && (rNode.classList.contains('fixed-crop-frame') || rNode.classList.contains('size-modal-overlay'))) ||
+            (rNode.querySelector && (rNode.querySelector('.fixed-crop-frame') || rNode.querySelector('.size-modal-overlay')))
+          )) {
+            shouldCheck = true;
+            break;
+          }
+        }
       }
     }
     if (shouldCheck) {
